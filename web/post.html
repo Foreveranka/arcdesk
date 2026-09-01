@@ -4,6 +4,22 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Post offer · Arcdesk</title>
+<meta name="description" content="Sell the Arc USDC you hold or bid Base USDC for it. Both sides of the book are open to anyone.">
+<link rel="canonical" href="https://arcdesk-roan.vercel.app/post.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Arcdesk">
+<meta property="og:title" content="Post an order on Arcdesk">
+<meta property="og:description" content="Sell the Arc USDC you hold or bid Base USDC for it. Both sides of the book are open to anyone.">
+<meta property="og:url" content="https://arcdesk-roan.vercel.app/post.html">
+<meta property="og:image" content="https://arcdesk-roan.vercel.app/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Arcdesk order book: asks and bids for USDC between Base and Arc">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Post an order on Arcdesk">
+<meta name="twitter:description" content="Sell the Arc USDC you hold or bid Base USDC for it. Both sides of the book are open to anyone.">
+<meta name="twitter:image" content="https://arcdesk-roan.vercel.app/og.png">
+<meta name="theme-color" content="#0d1117">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -80,12 +96,7 @@
   </div>
 </div>
 </div></main>
-<footer><div class="wrap">
-  <span class="flag">MAINNET · UNAUDITED</span>
-  Unaudited contracts on Base and Arc mainnet. Every payment is escrowed on-chain with a
-  permissionless timeout refund. Not affiliated with Circle or Arc.
-  <span class="grow" style="flex:1"></span><span>Arcdesk</span>
-</div></footer>
+
 <script src="app.js"></script>
 <script>
 initNav("post");
@@ -184,5 +195,26 @@ $("#po-go").addEventListener("click", async () => {
 
 preview();
 </script>
+<footer class="sitefoot"><div class="wrap">
+  <div class="inner">
+    <div class="brandcol">
+      <span class="spark">&#9672;</span>
+      <div><div class="bname">Arcdesk</div><div class="btag">USDC OTC &middot; Base &#8644; Arc</div></div>
+    </div>
+    <nav>
+      <a href="how.html">How it works</a>
+      <a href="fees.html">Fees</a>
+      <a href="refunds.html">Refund guarantee</a>
+      <a href="risk.html">Risk</a>
+      <a href="terms.html">Terms</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="docs.html">Docs</a>
+    </nav>
+  </div>
+  <div class="fine">
+    <span class="warn">Unaudited contracts. Never trade more than you can afford to lose.</span>
+    <span>Independent project. Not affiliated with Circle, Arc, or Base.</span>
+  </div>
+</div></footer>
 </body>
 </html>

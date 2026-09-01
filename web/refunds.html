@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Refund guarantee · Arcdesk</title>
+<meta name="description" content="If a trade does not settle, the refund is a permissionless contract call that nobody can switch off.">
+<link rel="canonical" href="https://arcdesk-roan.vercel.app/refunds.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Arcdesk">
+<meta property="og:title" content="Arcdesk refund guarantee">
+<meta property="og:description" content="If a trade does not settle, the refund is a permissionless contract call that nobody can switch off.">
+<meta property="og:url" content="https://arcdesk-roan.vercel.app/refunds.html">
+<meta property="og:image" content="https://arcdesk-roan.vercel.app/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Arcdesk order book: asks and bids for USDC between Base and Arc">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Arcdesk refund guarantee">
+<meta name="twitter:description" content="If a trade does not settle, the refund is a permissionless contract call that nobody can switch off.">
+<meta name="twitter:image" content="https://arcdesk-roan.vercel.app/og.png">
+<meta name="theme-color" content="#0d1117">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header><div class="wrap bar">
+  <a class="brand" href="index.html"><span class="spark">&#9672;</span> Arcdesk</a>
+  <nav class="menu">
+    <a href="index.html" data-page="trade">Trade</a>
+    <a href="post.html" data-page="post">Post offer</a>
+    <a href="orders.html" data-page="orders">Orders</a>
+    <a href="profile.html" data-page="profile">Profile</a>
+    <a href="how.html" data-page="how">How it works</a>
+    <a href="docs.html" data-page="docs">Docs</a>
+  </nav>
+  <div class="grow"></div>
+  <button class="themebtn" id="themebtn" aria-label="Toggle theme">☾</button>
+  <button class="connect" id="connect">Connect wallet</button>
+</div></header>
+<main><div class="wrap prose">
+
+<div class="pagehead"><h1>Refund guarantee</h1>
+<p>If a trade does not complete, your money comes back. Not as a support ticket, as a function on
+the contract that nobody, including us, can switch off.</p></div>
+<p class="updated">Last updated 1 September 2026</p>
+
+<h2>The guarantee</h2>
+<p>Every payment you escrow carries a deadline of <strong>at most 30 minutes</strong>. If the trade
+has not settled by then, <code>refundPayment(orderId, payer)</code> becomes callable by anyone and
+sends the full amount — price and fee — back to the address that paid it. There is no admin switch,
+no pause function, and no path by which the desk can keep escrowed funds.</p>
+
+<h2>When it applies</h2>
+<div class="tblwrap"><table class="tbl">
+  <tr><th>What happened</th><th>What you do</th></tr>
+  <tr><td>The counterparty never claimed your payment</td><td>Refund after the deadline. Your funds return in full.</td></tr>
+  <tr><td>The desk went offline mid-trade</td><td>Same. Settlement is on-chain, not dependent on our server staying up.</td></tr>
+  <tr><td>The counterparty claimed but delivery is slow</td><td>Nothing is lost: the preimage is public, and the delivery call stays open for at least an hour longer than your payment window. You or anyone can submit it.</td></tr>
+  <tr><td>You posted an order nobody took</td><td>Cancel it any time and withdraw instantly; time-limited orders are returned automatically when they expire.</td></tr>
+</table></div>
+
+<h2>Claiming a refund</h2>
+<p>From the site: open <a href="orders.html">Orders</a>, connect the wallet that paid, and the
+<strong>Refund</strong> button appears once the countdown ends.</p>
+<p>Without the site, from any wallet:</p>
+<pre><code>cast send $PAYMENT_ESCROW "refundPayment(bytes32,address)" $ORDER_ID $YOUR_ADDRESS \
+  --rpc-url https://mainnet.base.org --private-key $YOUR_KEY</code></pre>
+<p>Your order id is in the <code>PaymentLocked</code> event your own transaction emitted, so you can
+always recover it from the chain even if this site disappears.</p>
+
+<h2>Why the windows are asymmetric</h2>
+<p>A payment can be locked for at most 30 minutes; a reservation must live at least 90. The contract
+enforces both. That gap is what guarantees there is always time to deliver after a preimage becomes
+public — it is the reason a half-finished trade cannot strand you.</p>
+
+<h2>What this does not cover</h2>
+<p>The guarantee is about settlement, not about price or about risks outside the contract. It does
+not protect you from a bug in unaudited code, from an address-level blocklist applied by the token
+issuer, or from sending funds to an address you control incorrectly. See <a href="risk.html">Risk</a>.</p>
+</div></main>
+
+<script src="app.js"></script>
+<script>initNav("refunds");</script>
+<footer class="sitefoot"><div class="wrap">
+  <div class="inner">
+    <div class="brandcol">
+      <span class="spark">&#9672;</span>
+      <div><div class="bname">Arcdesk</div><div class="btag">USDC OTC &middot; Base &#8644; Arc</div></div>
+    </div>
+    <nav>
+      <a href="how.html">How it works</a>
+      <a href="fees.html">Fees</a>
+      <a href="refunds.html">Refund guarantee</a>
+      <a href="risk.html">Risk</a>
+      <a href="terms.html">Terms</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="docs.html">Docs</a>
+    </nav>
+  </div>
+  <div class="fine">
+    <span class="warn">Unaudited contracts. Never trade more than you can afford to lose.</span>
+    <span>Independent project. Not affiliated with Circle, Arc, or Base.</span>
+  </div>
+</div></footer>
+</body>
+</html>

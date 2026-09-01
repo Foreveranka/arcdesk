@@ -482,7 +482,7 @@ const routes = {
 
 // Static frontend from ../web — same origin as the API, so no CORS in production.
 const WEB = new URL("../web/", import.meta.url);
-const MIME = { html: "text/html", css: "text/css", js: "text/javascript", svg: "image/svg+xml" };
+const MIME = { html: "text/html", css: "text/css", js: "text/javascript", svg: "image/svg+xml", png: "image/png" };
 function serveStatic(pathname, res) {
   const name = pathname === "/" ? "index.html" : pathname.slice(1);
   if (!/^[a-z0-9._-]+$/i.test(name)) return false;

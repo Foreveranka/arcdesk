@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Risk · Arcdesk</title>
+<meta name="description" content="Unaudited contracts, a closed network, issuer blocklists — an honest list of how you could lose money.">
+<link rel="canonical" href="https://arcdesk-roan.vercel.app/risk.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Arcdesk">
+<meta property="og:title" content="Arcdesk risk disclosure">
+<meta property="og:description" content="Unaudited contracts, a closed network, issuer blocklists — an honest list of how you could lose money.">
+<meta property="og:url" content="https://arcdesk-roan.vercel.app/risk.html">
+<meta property="og:image" content="https://arcdesk-roan.vercel.app/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Arcdesk order book: asks and bids for USDC between Base and Arc">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Arcdesk risk disclosure">
+<meta name="twitter:description" content="Unaudited contracts, a closed network, issuer blocklists — an honest list of how you could lose money.">
+<meta name="twitter:image" content="https://arcdesk-roan.vercel.app/og.png">
+<meta name="theme-color" content="#0d1117">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header><div class="wrap bar">
+  <a class="brand" href="index.html"><span class="spark">&#9672;</span> Arcdesk</a>
+  <nav class="menu">
+    <a href="index.html" data-page="trade">Trade</a>
+    <a href="post.html" data-page="post">Post offer</a>
+    <a href="orders.html" data-page="orders">Orders</a>
+    <a href="profile.html" data-page="profile">Profile</a>
+    <a href="how.html" data-page="how">How it works</a>
+    <a href="docs.html" data-page="docs">Docs</a>
+  </nav>
+  <div class="grow"></div>
+  <button class="themebtn" id="themebtn" aria-label="Toggle theme">☾</button>
+  <button class="connect" id="connect">Connect wallet</button>
+</div></header>
+<main><div class="wrap prose">
+
+<div class="pagehead"><h1>Risk</h1>
+<p>An honest list of how you could lose money here. Read it before you trade, not after.</p></div>
+<p class="updated">Last updated 1 September 2026</p>
+
+<h2>The contracts are unaudited</h2>
+<p>No third party has reviewed this code. It is covered by 49 automated tests including adversarial,
+fuzz and stateful invariant suites, and it has settled real trades — but that is our own testing, not
+an independent audit. A bug could cost you everything you have escrowed. The source is public so you
+can read it yourself; it is deliberately short.</p>
+
+<h2>Arc is a closed network</h2>
+<p>Premiums exist because the official bridges into Arc are not open. That is the entire reason this
+market has a price. <strong>When access opens, premiums collapse.</strong> If you are holding Arc USDC
+bought at a large premium, you may not be able to sell it at anything near what you paid.</p>
+
+<h2>Token-level blocklist</h2>
+<p>USDC on Arc is administered by its issuer, which can freeze addresses at the chain level. A frozen
+address cannot move USDC — and that includes escrow contracts. This is entirely outside our control
+and no refund path can override it.</p>
+
+<h2>Counterparty and liveness</h2>
+<p>The desk can stall a trade — by not reserving, or by not submitting a delivery — but it can never
+capture one. Reserved liquidity pays only the recipient fixed at reserve time; payments pay only the
+parties named at lock time. If the desk disappears mid-trade, your refund path remains open.</p>
+
+<h2>Operational risk</h2>
+<p>The keeper runs on a server with a hot key. If that key were compromised, an attacker could stall
+trades and, for liquidity posted by third-party makers, move reserved slices. Maker-signed
+reservations are the fix and are required before third-party market making is opened.</p>
+
+<h2>Price and volatility</h2>
+<p>Premiums are set by makers and change quickly. The book can be thin. A price you see may be gone
+by the time you sign. Nothing here is a quote guarantee, investment advice, or a promise of liquidity.</p>
+
+<h2>Your own mistakes</h2>
+<p>You choose the receiving address. If you enter an address you do not control, or one on the wrong
+chain, the funds go there and cannot be recovered by us or by anyone.</p>
+
+<h2>Regulatory</h2>
+<p>This is a non-custodial tool, not a licensed exchange, broker, or money transmitter. It does not
+hold your funds and cannot act on your behalf. You are responsible for whether using it is lawful
+where you live, and for your own tax reporting.</p>
+</div></main>
+
+<script src="app.js"></script>
+<script>initNav("risk");</script>
+<footer class="sitefoot"><div class="wrap">
+  <div class="inner">
+    <div class="brandcol">
+      <span class="spark">&#9672;</span>
+      <div><div class="bname">Arcdesk</div><div class="btag">USDC OTC &middot; Base &#8644; Arc</div></div>
+    </div>
+    <nav>
+      <a href="how.html">How it works</a>
+      <a href="fees.html">Fees</a>
+      <a href="refunds.html">Refund guarantee</a>
+      <a href="risk.html">Risk</a>
+      <a href="terms.html">Terms</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="docs.html">Docs</a>
+    </nav>
+  </div>
+  <div class="fine">
+    <span class="warn">Unaudited contracts. Never trade more than you can afford to lose.</span>
+    <span>Independent project. Not affiliated with Circle, Arc, or Base.</span>
+  </div>
+</div></footer>
+</body>
+</html>

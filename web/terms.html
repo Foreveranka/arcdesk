@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Terms · Arcdesk</title>
+<meta name="description" content="A non-custodial interface to escrow contracts on Base and Arc. No warranty, no advice, no custody.">
+<link rel="canonical" href="https://arcdesk-roan.vercel.app/terms.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Arcdesk">
+<meta property="og:title" content="Arcdesk terms of use">
+<meta property="og:description" content="A non-custodial interface to escrow contracts on Base and Arc. No warranty, no advice, no custody.">
+<meta property="og:url" content="https://arcdesk-roan.vercel.app/terms.html">
+<meta property="og:image" content="https://arcdesk-roan.vercel.app/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Arcdesk order book: asks and bids for USDC between Base and Arc">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Arcdesk terms of use">
+<meta name="twitter:description" content="A non-custodial interface to escrow contracts on Base and Arc. No warranty, no advice, no custody.">
+<meta name="twitter:image" content="https://arcdesk-roan.vercel.app/og.png">
+<meta name="theme-color" content="#0d1117">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header><div class="wrap bar">
+  <a class="brand" href="index.html"><span class="spark">&#9672;</span> Arcdesk</a>
+  <nav class="menu">
+    <a href="index.html" data-page="trade">Trade</a>
+    <a href="post.html" data-page="post">Post offer</a>
+    <a href="orders.html" data-page="orders">Orders</a>
+    <a href="profile.html" data-page="profile">Profile</a>
+    <a href="how.html" data-page="how">How it works</a>
+    <a href="docs.html" data-page="docs">Docs</a>
+  </nav>
+  <div class="grow"></div>
+  <button class="themebtn" id="themebtn" aria-label="Toggle theme">☾</button>
+  <button class="connect" id="connect">Connect wallet</button>
+</div></header>
+<main><div class="wrap prose">
+
+<div class="pagehead"><h1>Terms of use</h1>
+<p>Short, because the contract does the real work.</p></div>
+<p class="updated">Last updated 1 September 2026</p>
+
+<h2>What Arcdesk is</h2>
+<p>Arcdesk is a software interface to escrow contracts deployed on Base and Arc. It is
+<strong>non-custodial</strong>: it never takes possession of your funds, never holds balances for you,
+and cannot move your assets. Makers set their own prices. The desk operates a keeper that submits
+routine transactions and charges a 2% fee to takers on completed trades.</p>
+
+<h2>What you agree to</h2>
+<ul>
+  <li>You are using the interface at your own risk, and you have read the <a href="risk.html">Risk</a> page.</li>
+  <li>You are legally permitted to use it where you are, and you are responsible for your own taxes.</li>
+  <li>You will not use it to launder money, evade sanctions, or on behalf of a sanctioned party.</li>
+  <li>You control your own wallet and keys. We cannot recover them, reverse a transaction, or retrieve funds sent to a wrong address.</li>
+</ul>
+
+<h2>No warranty</h2>
+<p>The software is provided <strong>as is</strong>, without warranty of any kind. The contracts are
+unaudited. We do not guarantee availability, execution, price, liquidity, or that a trade will settle.
+To the maximum extent permitted by law, we are not liable for any loss arising from your use of this
+interface or the contracts, including losses caused by bugs, downtime, chain reorganisations, RPC
+failure, or third-party action such as an issuer freezing an address.</p>
+
+<h2>No advice</h2>
+<p>Nothing here is financial, investment, legal, or tax advice. Premiums shown are other users' prices,
+not our valuation of anything.</p>
+
+<h2>Availability and changes</h2>
+<p>We may change fees, take the interface offline, or stop operating the keeper at any time. Doing so
+cannot take your funds: escrowed positions remain governed by the contracts, and every refund path is
+permissionless. Material changes to these terms will be reflected by the date at the top of this page.</p>
+
+<h2>Contact</h2>
+<p>This is an independent project and is not affiliated with Circle, Arc, Base, or any of their
+operators. Anyone claiming to represent us, to offer a token, an airdrop, or a support wallet, is not us.</p>
+</div></main>
+
+<script src="app.js"></script>
+<script>initNav("terms");</script>
+<footer class="sitefoot"><div class="wrap">
+  <div class="inner">
+    <div class="brandcol">
+      <span class="spark">&#9672;</span>
+      <div><div class="bname">Arcdesk</div><div class="btag">USDC OTC &middot; Base &#8644; Arc</div></div>
+    </div>
+    <nav>
+      <a href="how.html">How it works</a>
+      <a href="fees.html">Fees</a>
+      <a href="refunds.html">Refund guarantee</a>
+      <a href="risk.html">Risk</a>
+      <a href="terms.html">Terms</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="docs.html">Docs</a>
+    </nav>
+  </div>
+  <div class="fine">
+    <span class="warn">Unaudited contracts. Never trade more than you can afford to lose.</span>
+    <span>Independent project. Not affiliated with Circle, Arc, or Base.</span>
+  </div>
+</div></footer>
+</body>
+</html>

@@ -57,10 +57,8 @@ body {
   margin: 0; background: var(--ground); color: var(--ink);
   font-family: "Archivo", system-ui, sans-serif; line-height: 1.45;
   -webkit-font-smoothing: antialiased;
-  /* sticky footer: short pages keep the TESTNET bar pinned to the bottom */
-  min-height: 100vh; display: flex; flex-direction: column;
+  min-height: 100vh;
 }
-main { flex: 1; }
 .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
 h1, h2, h3 { margin: 0 0 8px; text-wrap: balance; letter-spacing: -.01em; }
 p { margin: 0 0 12px; }
@@ -263,3 +261,26 @@ footer .wrap { display: flex; gap: 14px; flex-wrap: wrap; }
 .trust2 div{display:flex;gap:8px;font-size:12.5px;color:var(--muted);align-items:flex-start;flex:1;min-width:210px}
 .trust2 b{color:var(--ink);font-weight:600}
 .trust2 .ic{color:var(--teal);font-weight:700}
+
+/* ---- site footer ---- */
+.sitefoot{border-top:1px solid var(--line);margin-top:46px;padding:26px 0 40px}
+.sitefoot .inner{display:flex;gap:26px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.sitefoot .brandcol{display:flex;gap:11px;align-items:flex-start}
+.sitefoot .spark{width:26px;height:26px;border-radius:7px;flex:none}
+.sitefoot .bname{font-weight:800;font-size:14px;letter-spacing:.06em;text-transform:uppercase}
+.sitefoot .btag{font-size:12.5px;color:var(--faint);margin-top:2px}
+.sitefoot nav{display:flex;gap:22px;flex-wrap:wrap}
+.sitefoot nav a{color:var(--muted);font-size:13.5px}
+.sitefoot nav a:hover{color:var(--ink);text-decoration:none}
+.sitefoot .fine{margin-top:20px;padding-top:16px;border-top:1px solid var(--line);
+  display:flex;gap:14px;justify-content:space-between;flex-wrap:wrap;font-size:12px;color:var(--faint)}
+.sitefoot .fine .warn{color:var(--amber)}
+
+/* ---- long-form policy pages ---- */
+.prose{max-width:74ch}
+.prose h2{font-size:17px;margin-top:28px}
+.prose h3{font-size:14.5px;margin-top:20px}
+.prose p,.prose li{color:var(--muted);font-size:14px}
+.prose li{margin-bottom:6px}
+.prose strong{color:var(--ink)}
+.prose .updated{font-size:12.5px;color:var(--faint);margin-bottom:22px}

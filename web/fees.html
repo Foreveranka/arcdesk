@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fees · Arcdesk</title>
+<meta name="description" content="One 2% desk fee paid by the taker, included in every quoted price. Makers pay gas only.">
+<link rel="canonical" href="https://arcdesk-roan.vercel.app/fees.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Arcdesk">
+<meta property="og:title" content="Arcdesk fees">
+<meta property="og:description" content="One 2% desk fee paid by the taker, included in every quoted price. Makers pay gas only.">
+<meta property="og:url" content="https://arcdesk-roan.vercel.app/fees.html">
+<meta property="og:image" content="https://arcdesk-roan.vercel.app/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Arcdesk order book: asks and bids for USDC between Base and Arc">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Arcdesk fees">
+<meta name="twitter:description" content="One 2% desk fee paid by the taker, included in every quoted price. Makers pay gas only.">
+<meta name="twitter:image" content="https://arcdesk-roan.vercel.app/og.png">
+<meta name="theme-color" content="#0d1117">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header><div class="wrap bar">
+  <a class="brand" href="index.html"><span class="spark">&#9672;</span> Arcdesk</a>
+  <nav class="menu">
+    <a href="index.html" data-page="trade">Trade</a>
+    <a href="post.html" data-page="post">Post offer</a>
+    <a href="orders.html" data-page="orders">Orders</a>
+    <a href="profile.html" data-page="profile">Profile</a>
+    <a href="how.html" data-page="how">How it works</a>
+    <a href="docs.html" data-page="docs">Docs</a>
+  </nav>
+  <div class="grow"></div>
+  <button class="themebtn" id="themebtn" aria-label="Toggle theme">☾</button>
+  <button class="connect" id="connect">Connect wallet</button>
+</div></header>
+<main><div class="wrap prose">
+
+<div class="pagehead"><h1>Fees</h1>
+<p>One fee, charged once, always visible in the quote before you sign anything.</p></div>
+<p class="updated">Last updated 1 September 2026</p>
+
+<h2>The desk fee</h2>
+<p><strong>2% of the maker's proceeds, paid by the taker.</strong> The taker is whoever accepts an
+existing order: the buyer when they hit an ask, the seller when they fill a bid. Posting an order
+to the book costs nothing beyond gas.</p>
+<div class="tblwrap"><table class="tbl">
+  <tr><th>Who</th><th>Pays</th><th>Receives</th></tr>
+  <tr><td>Maker (posts the order)</td><td>Gas only</td><td>Their asking price in full</td></tr>
+  <tr><td>Taker (accepts the order)</td><td>Price + 2% + gas</td><td>The USDC they bought</td></tr>
+</table></div>
+
+<h2>How a quote is built</h2>
+<p>For buying <strong>A</strong> Arc USDC from an ask priced at premium <strong>p</strong>:</p>
+<pre><code>proceeds = A × (1 + p)        → goes to the maker
+fee      = proceeds × 2%      → goes to the desk treasury
+you pay  = proceeds + fee</code></pre>
+<p>The order book shows every level as a single price per 1 Arc USDC <strong>with the fee already
+included</strong>, so what you compare is what you pay. Nothing is added at the last step.</p>
+
+<h2>Gas</h2>
+<p>You pay gas only on the chain where your own funds sit — one approval and one lock. The desk
+pays the gas for everything else, including the delivery on the other chain and returning expired
+liquidity to makers. On Arc the gas token is USDC itself; a full settlement costs the desk well
+under one cent.</p>
+
+<h2>What we never charge</h2>
+<ul>
+  <li>No listing fee, no cancellation fee, no withdrawal fee.</li>
+  <li>No spread on top of the maker's price — the premium is the maker's, not ours.</li>
+  <li>No fee on refunds. If a trade fails you get back exactly what you escrowed.</li>
+</ul>
+</div></main>
+
+<script src="app.js"></script>
+<script>initNav("fees");</script>
+<footer class="sitefoot"><div class="wrap">
+  <div class="inner">
+    <div class="brandcol">
+      <span class="spark">&#9672;</span>
+      <div><div class="bname">Arcdesk</div><div class="btag">USDC OTC &middot; Base &#8644; Arc</div></div>
+    </div>
+    <nav>
+      <a href="how.html">How it works</a>
+      <a href="fees.html">Fees</a>
+      <a href="refunds.html">Refund guarantee</a>
+      <a href="risk.html">Risk</a>
+      <a href="terms.html">Terms</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="docs.html">Docs</a>
+    </nav>
+  </div>
+  <div class="fine">
+    <span class="warn">Unaudited contracts. Never trade more than you can afford to lose.</span>
+    <span>Independent project. Not affiliated with Circle, Arc, or Base.</span>
+  </div>
+</div></footer>
+</body>
+</html>
