@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orders · Arcdesk</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header><div class="wrap bar">
+  <a class="brand" href="index.html"><span class="spark">&#9672;</span> Arcdesk</a>
+  <nav class="menu">
+    <a href="index.html" data-page="trade">Trade</a>
+    <a href="post.html" data-page="post">Post offer</a>
+    <a href="orders.html" data-page="orders">Orders</a>
+    <a href="profile.html" data-page="profile">Profile</a>
+    <a href="how.html" data-page="how">How it works</a>
+    <a href="docs.html" data-page="docs">Docs</a>
+  </nav>
+  <div class="grow"></div>
+  <button class="themebtn" id="themebtn" aria-label="Toggle theme">☾</button>
+  <button class="connect" id="connect">Connect wallet</button>
+</div></header>
+<main><div class="wrap">
+
+<div class="pagehead">
+  <h1>Your orders</h1>
+  <p>Every order is tracked on both chains. If a delivery ever stalls, the refund button appears
+  here after the timeout — it calls the contract directly from your wallet.</p>
+</div>
+<div id="olist"><p class="note">Connect your wallet to see your orders.</p></div>
+
+</div></main>
+<footer><div class="wrap">
+  <span class="flag">MAINNET · UNAUDITED</span>
+  Unaudited contracts on Base and Arc mainnet. Every payment is escrowed on-chain with a
+  permissionless timeout refund. Not affiliated with Circle or Arc.
+  <span class="grow" style="flex:1"></span><span>Arcdesk</span>
+</div></footer>
+<script src="app.js"></script>
+<script>
+initNav("orders");
+async function load() {
+  if (!wallet.addr) return;
+  try {
+    const { orders } = await api("/address/" + wallet.addr + "/orders");
+    if (!orders.length) { $("#olist").innerHTML = '<p class="note">No orders yet. <a href="index.html">Make your first trade.</a></p>'; return; }
+    const now = Math.floor(Date.now() / 1000);
+    $("#olist").innerHTML = '<div class="tblwrap"><table class="tbl"><tr><th>Order</th><th>Bought</th><th>Paid</th><th>Status</th><th>When</th><th></th></tr>' +
+      orders.map((o) => {
+        const refundable = o.status === "paid" && now >= o.payDeadline;
+        return "<tr><td class='mono'>" + o.orderId.slice(0, 10) + "…</td>" +
+          "<td class='mono'>" + fmt6(o.amount) + "</td>" +
+          "<td class='mono'>" + fmt6(String(BigInt(o.proceeds) + BigInt(o.fee))) + "</td>" +
+          "<td>" + statusBadge(o.status) + "</td>" +
+          "<td style='color:var(--faint)'>" + new Date(o.createdAt * 1000).toLocaleString() + "</td>" +
+          "<td>" + (refundable ? "<button class='ghost' data-r='" + o.orderId + "'>Refund</button>" : "") + "</td></tr>";
+      }).join("") + "</table></div>";
+    $$("[data-r]").forEach((b) => b.addEventListener("click", async () => {
+      try {
+        const h = await api("/health");
+        const tx = await wallet.send(h.sourceEscrow, dataRefund(b.dataset.r, wallet.addr));
+        await wallet.waitTx(tx);
+        toast("Refund claimed. Your USDC is back.");
+        load();
+      } catch (e) { toast(e.message, "err"); }
+    }));
+  } catch (e) { $("#olist").innerHTML = '<p class="note err">' + e.message + "</p>"; }
+}
+if (wallet.addr) load(); else $("#connect").addEventListener("click", () => setTimeout(load, 800));
+setInterval(load, 10000);
+</script>
+</body>
+</html>

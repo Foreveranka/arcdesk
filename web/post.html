@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Post offer · Arcdesk</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header><div class="wrap bar">
+  <a class="brand" href="index.html"><span class="spark">&#9672;</span> Arcdesk</a>
+  <nav class="menu">
+    <a href="index.html" data-page="trade">Trade</a>
+    <a href="post.html" data-page="post">Post offer</a>
+    <a href="orders.html" data-page="orders">Orders</a>
+    <a href="profile.html" data-page="profile">Profile</a>
+    <a href="how.html" data-page="how">How it works</a>
+    <a href="docs.html" data-page="docs">Docs</a>
+  </nav>
+  <div class="grow"></div>
+  <button class="themebtn" id="themebtn" aria-label="Toggle theme">☾</button>
+  <button class="connect" id="connect">Connect wallet</button>
+</div></header>
+<main><div class="wrap">
+
+<div class="pagehead">
+  <h1>Post an order</h1>
+  <p>Both sides of the book are open to anyone. Sell the Arc USDC you hold, or bid Base USDC for
+  Arc USDC you want. Your funds sit in the escrow contract, never with the desk, and you can
+  cancel and withdraw whenever you like.</p>
+</div>
+
+<div class="tabs" role="tablist" style="margin-top:0">
+  <button class="tab" role="tab" aria-selected="true" data-side="ask">Sell Arc USDC (ask)</button>
+  <button class="tab" role="tab" aria-selected="false" data-side="bid">Buy Arc USDC (bid)</button>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <div class="field">
+      <label for="po-amt" id="po-amtlabel">Arc USDC to sell</label>
+      <input class="input" id="po-amt" inputmode="decimal" value="100">
+    </div>
+    <div class="field">
+      <label for="po-prem" id="po-premlabel">Premium (%)</label>
+      <input class="input" id="po-prem" inputmode="decimal" value="20">
+    </div>
+    <div class="field">
+      <label for="po-exp">Order window</label>
+      <select class="input" id="po-exp" style="font-family:inherit">
+        <option value="0">Open-ended — until you cancel</option>
+        <option value="300">5 minutes</option>
+        <option value="600">10 minutes</option>
+        <option value="1800">30 minutes</option>
+        <option value="3600">1 hour</option>
+        <option value="86400">24 hours</option>
+      </select>
+    </div>
+    <div class="note" id="po-preview" style="margin-bottom:14px"></div>
+    <button class="cta" id="po-go">Approve &amp; post</button>
+    <div id="po-status" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <h3 id="po-helptitle">Selling Arc USDC</h3>
+    <p style="color:var(--muted);font-size:14px" id="po-help"></p>
+    <ul class="steps" style="margin-top:6px">
+      <li class="done"><span class="k">1</span><div class="tx"><b>Your funds are escrowed</b>
+        <span>Two wallet transactions: approve, then post. The contract holds them, not us.</span></div></li>
+      <li class="done"><span class="k">2</span><div class="tx"><b>Someone takes your order</b>
+        <span>The desk reserves your slice for them and settles both legs under one hashlock.</span></div></li>
+      <li class="done"><span class="k">3</span><div class="tx"><b>You are paid</b>
+        <span>Unfilled liquidity stays yours — cancel any time, or let the window expire.</span></div></li>
+    </ul>
+    <p class="note" style="margin-top:12px">Contract: <span class="mono" id="po-contract">—</span></p>
+  </div>
+</div>
+</div></main>
+<footer><div class="wrap">
+  <span class="flag">MAINNET · UNAUDITED</span>
+  Unaudited contracts on Base and Arc mainnet. Every payment is escrowed on-chain with a
+  permissionless timeout refund. Not affiliated with Circle or Arc.
+  <span class="grow" style="flex:1"></span><span>Arcdesk</span>
+</div></footer>
+<script src="app.js"></script>
+<script>
+initNav("post");
+let side = "ask", ESCROWS = null;
+
+const COPY = {
+  ask: {
+    amt: "Arc USDC to sell", prem: "Premium (%)",
+    title: "Selling Arc USDC",
+    help: "You escrow Arc USDC. A buyer pays on Base at your premium plus the 2% desk fee, and " +
+          "the contract releases your USDC to them only once your payment is claimable.",
+  },
+  bid: {
+    amt: "Arc USDC you want", prem: "Premium you'll pay (%)",
+    title: "Bidding for Arc USDC",
+    help: "You escrow Base USDC. Whoever holds Arc USDC can fill your bid: they send Arc USDC to " +
+          "your address and take your escrowed Base USDC. You never need Arc gas.",
+  },
+};
+
+document.querySelectorAll(".tab[data-side]").forEach((t) => t.addEventListener("click", () => {
+  document.querySelectorAll(".tab[data-side]").forEach((x) => x.setAttribute("aria-selected", "false"));
+  t.setAttribute("aria-selected", "true");
+  side = t.dataset.side;
+  $("#po-amtlabel").textContent = COPY[side].amt;
+  $("#po-premlabel").textContent = COPY[side].prem;
+  $("#po-helptitle").textContent = COPY[side].title;
+  $("#po-help").textContent = COPY[side].help;
+  $("#po-contract").textContent = ESCROWS ? (side === "ask" ? ESCROWS.arc : ESCROWS.source) : "—";
+  preview();
+}));
+
+function preview() {
+  const amt = parseFloat($("#po-amt").value) || 0;
+  const prem = parseFloat($("#po-prem").value) || 0;
+  const exp = parseInt($("#po-exp").value || "0", 10);
+  const gross = amt * (1 + prem / 100);
+  const window_ = exp === 0 ? "<b>until you cancel</b>" : "<b>" + (exp / 60) + " min</b>";
+  $("#po-preview").innerHTML = side === "ask"
+    ? "Buyer pays <b class='mono'>" + (gross * 1.02).toFixed(2) + "</b> USDC on Base · you receive <b class='mono'>" +
+      gross.toFixed(2) + "</b> USDC · live " + window_
+    : "You escrow <b class='mono'>" + (gross * 1.02).toFixed(2) + "</b> USDC on Base · seller delivers <b class='mono'>" +
+      amt.toFixed(2) + "</b> Arc USDC · live " + window_;
+}
+["po-amt", "po-prem"].forEach((id) => $("#" + id).addEventListener("input", preview));
+$("#po-exp").addEventListener("change", preview);
+
+api("/health").then((h) => {
+  ESCROWS = { arc: h.arcEscrow, source: h.sourceEscrow };
+  $("#po-contract").textContent = ESCROWS.arc;
+}).catch(() => {});
+
+$("#po-go").addEventListener("click", async () => {
+  const st = (m, cls) => $("#po-status").innerHTML = m ? `<div class="note ${cls || ''}">${m}</div>` : "";
+  try {
+    if (!ESCROWS) return st("Desk API unreachable — cannot read the escrow addresses.", "err");
+    if (!wallet.addr) await wallet.connect();
+    const amt = parseFloat($("#po-amt").value) || 0;
+    const prem = parseFloat($("#po-prem").value) || 0;
+    const exp = parseInt($("#po-exp").value || "0", 10);
+    if (amt <= 0) return st("Enter an amount.", "err");
+    const premBps = Math.round(prem * 100);
+    if (premBps < 0 || premBps > 65535) return st("Premium must be between 0 and 655.35%.", "err");
+
+    // An ask escrows Arc USDC on Arc; a bid escrows Base USDC on the source chain, sized to
+    // cover the Arc USDC wanted plus the premium and fee the filler is paid.
+    const isAsk = side === "ask";
+    const chain = isAsk ? "arc" : "source";
+    const escrow = isAsk ? ESCROWS.arc : ESCROWS.source;
+    const token = isAsk ? CFG.arcUsdc : CFG.sourceUsdc;
+    const amount6 = isAsk
+      ? BigInt(Math.round(amt * 1e6))
+      : BigInt(Math.round(amt * (1 + prem / 100) * 1.02 * 1e6));
+
+    $("#po-go").disabled = true;
+    const rnd = crypto.getRandomValues(new Uint8Array(32));
+    const offerId = "0x" + Array.from(rnd).map((b) => b.toString(16).padStart(2, "0")).join("");
+    const expiry = exp === 0 ? 0 : Math.floor(Date.now() / 1000) + exp;
+
+    st("Approve the USDC spend in your wallet…");
+    const txA = await wallet.send(token, dataApprove(escrow, amount6), chain);
+    await wallet.waitTx(txA, chain);
+
+    st("Now confirm the order in your wallet…");
+    const data = SEL_POST_OFFER + pad32(offerId) + padNum(amount6) + padNum(premBps) + padNum(expiry);
+    const txP = await wallet.send(escrow, data, chain);
+    await wallet.waitTx(txP, chain);
+
+    st("Posted. It appears in the order book within about 15 seconds.", "");
+    toast("Order posted.");
+    setTimeout(() => (location.href = "index.html"), 2500);
+  } catch (e) {
+    st(e.message, "err");
+  } finally { $("#po-go").disabled = false; }
+});
+
+preview();
+</script>
+</body>
+</html>

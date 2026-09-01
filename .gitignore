@@ -1,0 +1,29 @@
+# NOTE: .gitignore has no inline comments — a trailing "# ..." becomes part of the pattern
+# and silently disables the rule. Keep every comment on its own line.
+
+# secrets: never commit
+# .deployer.json holds the keeper/deployer private key
+.deployer.json
+# .env wires the keeper to live funds; .env.* covers every variant
+.env
+.env.*
+!.env.example
+# the SQLite db stores per-order settlement preimages
+backend/*.db
+backend/*.db-wal
+backend/*.db-shm
+
+# build output & dependencies
+node_modules/
+# backend/node_modules is a symlink to keeper's, and a trailing-slash rule misses symlinks
+backend/node_modules
+contracts/out/
+contracts/cache/
+contracts/lib/
+# deploy receipts expose the deployer address and full tx history
+contracts/broadcast/
+.vercel/
+
+# os noise
+.DS_Store
+*.log

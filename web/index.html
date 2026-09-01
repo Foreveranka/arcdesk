@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arcdesk</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header><div class="wrap bar">
+  <a class="brand" href="index.html"><span class="spark">&#9672;</span> Arcdesk</a>
+  <nav class="menu">
+    <a href="index.html" data-page="trade">Trade</a>
+    <a href="post.html" data-page="post">Post offer</a>
+    <a href="orders.html" data-page="orders">Orders</a>
+    <a href="profile.html" data-page="profile">Profile</a>
+    <a href="how.html" data-page="how">How it works</a>
+    <a href="docs.html" data-page="docs">Docs</a>
+  </nav>
+  <div class="grow"></div>
+  <button class="themebtn" id="themebtn" aria-label="Toggle theme">☾</button>
+  <button class="connect" id="connect">Connect wallet</button>
+</div></header>
+<main><div class="wrap">
+
+<div class="strip">
+  <div class="cell pair"><span></span><b><span class="dot"></span> USDC · Arc &#8644; Base</b></div>
+  <div class="cell ask"><span>Best ask</span><b class="mono" id="s-ask">—</b></div>
+  <div class="cell bid"><span>Best bid</span><b class="mono" id="s-bid">—</b></div>
+  <div class="cell"><span>Spread</span><b class="mono" id="s-spread">—</b></div>
+  <div class="cell"><span>Book depth</span><b class="mono" id="s-depth">—</b></div>
+  <div class="cell"><span>Settled</span><b class="mono" id="s-trades">—</b></div>
+  <div class="cell"><span>Desk fee</span><b class="mono">2.0%</b></div>
+</div>
+
+<div class="exchange">
+  <div class="panel">
+    <div class="ph"><b>Order book</b><span id="bookmeta">price per 1 Arc USDC, fee included</span></div>
+    <div class="bookcols">
+      <div class="bookcol asks">
+        <div class="colhead"><div>Ask · buy from</div><div class="r">Size</div></div>
+        <div id="asks"><p class="emptybook">loading…</p></div>
+      </div>
+      <div class="bookcol bids">
+        <div class="colhead"><div>Bid · sell into</div><div class="r">Size</div></div>
+        <div id="bids"><p class="emptybook">loading…</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ph"><b id="tk-title">Trade</b><span id="tk-hint">pick a price or type an amount</span></div>
+    <div class="ticket">
+      <div class="tside">
+        <button data-side="ask" aria-pressed="true">Buy Arc USDC</button>
+        <button data-side="bid" aria-pressed="false">Sell Arc USDC</button>
+      </div>
+      <div class="field">
+        <label for="bf-amt" id="bf-amtlabel">Amount (Arc USDC)</label>
+        <input class="input mono" id="bf-amt" inputmode="decimal" value="10">
+      </div>
+      <div class="field">
+        <label for="bf-recv" id="bf-recvlabel">Receive at (your Arc address)</label>
+        <input class="input mono" id="bf-recv" placeholder="0x…">
+      </div>
+      <div class="tline"><span id="tk-pricelabel">Price</span><b class="mono" id="tk-price">—</b></div>
+      <div class="tline"><span>Desk fee · 2%</span><b class="mono" id="tk-fee">—</b></div>
+      <div class="tsep"></div>
+      <div class="tline big"><span id="tk-totlabel">You pay</span><b class="mono" id="tk-total">—</b></div>
+      <div class="tline"><span id="tk-getlabel">You receive</span><b class="mono" id="tk-get">—</b></div>
+      <ul class="steps" id="bf-steps" style="display:none;margin:12px 0 0"></ul>
+      <button class="cta" id="bf-go" style="margin-top:14px" disabled>Select a price</button>
+      <p class="note" style="margin-top:10px;font-size:12.5px" id="tk-note"></p>
+    </div>
+  </div>
+</div>
+
+
+</div></main>
+<footer><div class="wrap">
+  <span class="flag">MAINNET · UNAUDITED</span>
+  Unaudited contracts on Base and Arc mainnet. Every payment is escrowed on-chain with a
+  permissionless timeout refund. Not affiliated with Circle or Arc.
+  <span class="grow" style="flex:1"></span><span>Arcdesk</span>
+</div></footer>
+<script src="app.js"></script>
+<script>
+initNav("trade");
+
+let offers = [], bids = [], chosen = null, side = "ask";
+
+// Everything is quoted as price per 1 Arc USDC with the desk fee included, so the two sides
+// of the book compare directly even though they settle on opposite chains.
+const askPrice = (o) => (1 + o.premiumBps / 10000) * 1.02;
+const bidPrice = (b) => (1 + b.premiumBps / 10000);
+const usd = (n) => "$" + n.toFixed(3);
+
+async function load() {
+  try {
+    const [o, b, st] = await Promise.all([api("/offers"), api("/bids"), api("/stats")]);
+    offers = o.offers; bids = b.bids;
+    $("#s-trades").textContent = st.trades;
+    render();
+  } catch (e) {
+    $("#asks").innerHTML = $("#bids").innerHTML =
+      '<p class="emptybook" style="color:var(--crit)">Desk API unreachable.</p>';
+    $("#bookmeta").textContent = "offline";
+  }
+}
+
+function render() {
+  const asks = offers.slice().sort((a, z) => askPrice(a) - askPrice(z));
+  const bds  = bids.slice().sort((a, z) => bidPrice(z) - bidPrice(a));
+  const maxA = Math.max(1, ...asks.map((o) => Number(o.remaining)));
+  const maxB = Math.max(1, ...bds.map((b) => Number(b.remaining)));
+
+  $("#asks").innerHTML = asks.length ? asks.map((o) =>
+    `<div class="lvl" data-ask="${o.offerId}">
+       <div class="depth" style="width:${(Number(o.remaining) / maxA * 100).toFixed(1)}%"></div>
+       <div class="p">${usd(askPrice(o))}</div><div class="s">${fmt6(o.remaining)}</div></div>`).join("")
+    : '<p class="emptybook"><b>No asks</b>Nobody is selling Arc USDC yet.</p>';
+
+  $("#bids").innerHTML = bds.length ? bds.map((b) =>
+    `<div class="lvl" data-bid="${b.offerId}">
+       <div class="depth" style="width:${(Number(b.remaining) / maxB * 100).toFixed(1)}%"></div>
+       <div class="p">${usd(bidPrice(b))}</div><div class="s">${fmt6(b.remaining)}</div></div>`).join("")
+    : '<p class="emptybook"><b>No bids</b>Nobody is buying Arc USDC yet.</p>';
+
+  const bestAsk = asks.length ? askPrice(asks[0]) : null;
+  const bestBid = bds.length ? bidPrice(bds[0]) : null;
+  $("#s-ask").textContent = bestAsk ? usd(bestAsk) : "—";
+  $("#s-bid").textContent = bestBid ? usd(bestBid) : "—";
+  $("#s-spread").textContent = bestAsk && bestBid ? ((bestAsk - bestBid) * 100).toFixed(1) + "¢" : "—";
+  const depth = offers.reduce((s, o) => s + Number(o.remaining), 0) + bids.reduce((s, b) => s + Number(b.remaining), 0);
+  $("#s-depth").textContent = depth ? fmt6(String(Math.round(depth))) : "—";
+
+  $$("[data-ask]").forEach((el) => el.addEventListener("click", () => pick("ask", offers.find((o) => o.offerId === el.dataset.ask))));
+  $$("[data-bid]").forEach((el) => el.addEventListener("click", () => pick("bid", bids.find((b) => b.offerId === el.dataset.bid))));
+  if (chosen) {
+    const still = (side === "ask" ? offers : bids).find((x) => x.offerId === chosen.offerId);
+    chosen = still || null;
+    if (!chosen) quote();
+  }
+  markSelected();
+}
+
+function markSelected() {
+  $$(".lvl").forEach((el) => el.classList.toggle("sel",
+    chosen && (el.dataset.ask === chosen.offerId || el.dataset.bid === chosen.offerId)));
+}
+
+function setSide(s) {
+  side = s;
+  $$(".tside button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.side === s)));
+  const buying = s === "ask";
+  $("#tk-title").textContent = buying ? "Buy Arc USDC" : "Sell Arc USDC";
+  $("#bf-amtlabel").textContent = buying ? "Amount (Arc USDC to buy)" : "Amount (Arc USDC to sell)";
+  $("#bf-recvlabel").textContent = buying ? "Receive at (your Arc address)" : "Receive Base USDC at";
+  $("#tk-totlabel").textContent = buying ? "You pay on Base" : "You send on Arc";
+  $("#tk-getlabel").textContent = buying ? "You receive on Arc" : "You receive on Base";
+  $("#tk-note").textContent = buying
+    ? "The seller's USDC is reserved for you before you pay. You never need Arc gas."
+    : "The buyer's USDC is reserved for you before you send anything. You never need Base gas.";
+  markSelected();
+  quote();
+}
+// Switching sides by hand clears the picked level; clicking a level switches side and keeps it.
+$$(".tside button").forEach((b) => b.addEventListener("click", () => {
+  chosen = null;
+  setSide(b.dataset.side);
+}));
+
+function pick(s, o) {
+  if (!o) return;
+  chosen = o;
+  setSide(s);
+  if (wallet.addr && !$("#bf-recv").value) $("#bf-recv").value = wallet.addr;
+}
+
+function quote() {
+  const amt = Math.round((parseFloat($("#bf-amt").value) || 0) * 1e6);
+  const go = $("#bf-go");
+  if (!chosen) {
+    $("#tk-price").textContent = $("#tk-fee").textContent = $("#tk-total").textContent = $("#tk-get").textContent = "—";
+    go.disabled = true; go.textContent = "Select a price from the book";
+    return;
+  }
+  const price = side === "ask" ? askPrice(chosen) : bidPrice(chosen);
+  $("#tk-price").textContent = usd(price);
+  if (side === "ask") {
+    const proceeds = Math.floor(amt * (10000 + chosen.premiumBps) / 10000);
+    const fee = Math.floor(proceeds * 200 / 10000);
+    $("#tk-fee").textContent = fmt6(String(fee));
+    $("#tk-total").textContent = fmt6(String(proceeds + fee)) + " USDC";
+    $("#tk-get").textContent = fmt6(String(amt)) + " USDC";
+    go.textContent = "Buy " + fmt6(String(amt)) + " Arc USDC";
+  } else {
+    const payout = Math.floor(amt * (10000 + chosen.premiumBps) / 10000);
+    const fee = Math.floor(payout * 200 / 10000);
+    $("#tk-fee").textContent = fmt6(String(fee));
+    $("#tk-total").textContent = fmt6(String(amt)) + " USDC";
+    $("#tk-get").textContent = fmt6(String(payout - fee)) + " USDC";
+    go.textContent = "Sell " + fmt6(String(amt)) + " Arc USDC";
+  }
+  go.disabled = amt <= 0;
+}
+$("#bf-amt").addEventListener("input", quote);
+
+const ASK_STEPS = [
+  ["Reserved for you", "the seller's USDC is set aside before you pay"],
+  ["Approve USDC", "wallet transaction 1 of 2, on Base"],
+  ["Payment locked", "wallet transaction 2 of 2, escrowed under a hashlock"],
+  ["Delivered on Arc", "the desk submits it — you spend no Arc gas"],
+];
+const BID_STEPS = [
+  ["Reserved for you", "the buyer's USDC is set aside before you send anything"],
+  ["Approve USDC", "wallet transaction 1 of 2, on Arc"],
+  ["Arc USDC locked", "wallet transaction 2 of 2, escrowed under a hashlock"],
+  ["Paid on Base", "the desk releases the Base USDC to your address"],
+];
+function drawSteps(state) {
+  const steps = side === "ask" ? ASK_STEPS : BID_STEPS;
+  const ul = $("#bf-steps");
+  ul.style.display = "block";
+  ul.innerHTML = steps.map((s, i) =>
+    `<li class="${i < state ? "done" : i === state ? "active" : ""}"><span class="k">${i < state ? "&#10003;" : i + 1}</span>
+     <div class="tx"><b>${s[0]}</b><span>${s[1]}</span></div></li>`).join("");
+}
+
+$("#bf-go").addEventListener("click", async () => {
+  try {
+    if (!chosen) return;
+    if (!wallet.addr) await wallet.connect();
+    const recv = $("#bf-recv").value.trim();
+    if (!/^0x[0-9a-fA-F]{40}$/.test(recv)) return toast("Enter a valid receive address.", "err");
+    const amt = Math.round((parseFloat($("#bf-amt").value) || 0) * 1e6);
+    if (amt <= 0) return toast("Enter an amount.", "err");
+    $("#bf-go").disabled = true;
+    drawSteps(0);
+
+    const isAsk = side === "ask";
+    const ord = isAsk
+      ? await api("/orders", { method: "POST", body: JSON.stringify({
+          offerId: chosen.offerId, amount6: String(amt), takerSource: wallet.addr, recipientArc: recv }) })
+      : await api("/fills", { method: "POST", body: JSON.stringify({
+          offerId: chosen.offerId, amount6: String(amt), sellerArc: wallet.addr, recipientSource: recv }) });
+    drawSteps(1);
+
+    const chain = isAsk ? "source" : "arc";
+    const total = BigInt(ord.lockPayment.proceeds) + BigInt(ord.lockPayment.fee);
+    await wallet.waitTx(await wallet.send(ord.usdc, dataApprove(ord.escrow, total), chain), chain);
+    drawSteps(2);
+    await wallet.waitTx(await wallet.send(ord.escrow, dataLockPayment(ord.lockPayment), chain), chain);
+    drawSteps(3);
+    toast(isAsk ? "Payment locked. Delivering on Arc…" : "Arc USDC locked. Releasing your Base USDC…");
+
+    for (let i = 0; i < 60; i++) {
+      const st = (await api("/orders/" + ord.orderId)).status;
+      if (st === "delivered") { drawSteps(4); toast("Settled. Check your wallet."); break; }
+      if (st === "refunded") { toast("Order refunded.", "err"); break; }
+      await new Promise((r) => setTimeout(r, 4000));
+    }
+    location.href = "orders.html";
+  } catch (e) {
+    toast(e.message, "err");
+  } finally { quote(); }
+});
+
+setSide("ask");
+load();
+setInterval(load, 12000);
+</script>
+</body>
+</html>

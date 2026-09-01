@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arcdesk Deployer</title>
+<link rel="icon" type="image/svg+xml" href="../web/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ground:#0d1117; --surface:#161b22; --line:#262d38; --line-strong:#333c49;
+    --ink:#e8ecf2; --muted:#98a2b3; --faint:#6b7482;
+    --teal:#35d0ba; --teal-soft:#12312e; --amber:#f5a524; --amber-soft:#35290f;
+    --good:#3fb950; --crit:#f85149; --crit-soft:#3a1a18;
+    color-scheme: dark;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:Archivo,system-ui,sans-serif;line-height:1.5}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+  .wrap{max-width:820px;margin:0 auto;padding:28px 20px 70px}
+  h1{font-size:26px;font-weight:800;margin:0 0 6px;letter-spacing:-.01em}
+  h2{font-size:16px;margin:0 0 10px}
+  p{margin:0 0 12px}
+  .sub{color:var(--muted);font-size:14px;max-width:62ch}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px}
+  .warn{background:var(--amber-soft);color:var(--amber);border-radius:10px;padding:12px 14px;font-size:13.5px;margin-bottom:16px}
+  .err{background:var(--crit-soft);color:var(--crit);border-radius:10px;padding:11px 13px;font-size:13px}
+  .okbox{background:color-mix(in srgb,var(--good) 14%,transparent);color:var(--good);border-radius:10px;padding:11px 13px;font-size:13px}
+  button{font-family:inherit;cursor:pointer}
+  .btn{height:44px;padding:0 20px;border-radius:11px;border:0;background:var(--teal);color:#04211d;font-weight:700;font-size:14.5px}
+  .btn:disabled{opacity:.45;cursor:default}
+  .btn.ghost{background:none;border:1px solid var(--line-strong);color:var(--ink)}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .kv{display:flex;justify-content:space-between;gap:14px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+  .kv:last-child{border-bottom:0}
+  .kv span{color:var(--muted)}
+  .kv b{font-weight:600;word-break:break-all;text-align:right}
+  select,input{height:42px;padding:0 12px;border-radius:10px;border:1px solid var(--line-strong);background:var(--ground);color:var(--ink);font-family:"IBM Plex Mono",monospace;font-size:13.5px;width:100%}
+  label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:0 0 6px}
+  .field{margin-bottom:13px}
+  .badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--teal-soft);color:var(--teal)}
+  .badge.live{background:var(--crit-soft);color:var(--crit)}
+  pre{background:var(--ground);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow-x:auto;font-size:12.5px;font-family:"IBM Plex Mono",monospace;margin:0}
+  .log{max-height:260px;overflow-y:auto;font-size:12.5px}
+  .step{display:flex;gap:11px;padding:7px 0;align-items:flex-start}
+  .step .k{width:22px;height:22px;border-radius:50%;border:2px solid var(--line-strong);flex:none;display:grid;place-items:center;font-size:11px;color:var(--faint)}
+  .step.done .k{border-color:var(--good);background:var(--good);color:#04211d}
+  .step.active .k{border-color:var(--teal);color:var(--teal)}
+  .step b{display:block;font-size:13.5px}
+  .step span{color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Arcdesk Deployer</h1>
+  <p class="sub">Deploys the escrow from your own wallet. Your private key stays in the wallet —
+  this page only asks it to sign, and never sees or stores anything secret.</p>
+
+  <div class="warn" id="netwarn">
+    <b>Mainnet deploys spend real funds and cannot be undone.</b> The contracts are unaudited and
+    have no amount caps. Start with a small maker offer once deployed.
+  </div>
+
+  <div class="card">
+    <h2>1 · Wallet</h2>
+    <div class="row">
+      <button class="btn" id="connect">Connect wallet</button>
+      <span class="mono" id="acct" style="color:var(--muted)">not connected</span>
+    </div>
+    <div id="balances" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <h2>2 · Target</h2>
+    <div class="field">
+      <label for="net">Deployment target</label>
+      <select id="net">
+        <option value="mainnet">MAINNET — Base (8453) + Arc (5042)</option>
+        <option value="testnet">Testnet — Base Sepolia (84532) + Arc testnet (5042002)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="operator">Operator (the keeper allowed to reserve — not an owner)</label>
+      <input id="operator" class="mono" value="0x7d2828dee9C6FE9253805314306Eda3fBded3465">
+    </div>
+    <p class="sub" style="margin:0">You become <b>owner</b> of both contracts. The operator can only
+    reserve maker liquidity against orders; it can never move funds, change roles, or block refunds.</p>
+  </div>
+
+  <div class="card">
+    <h2>3 · Deploy</h2>
+    <div id="steps"></div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn" id="go" disabled>Deploy both chains</button>
+      <button class="btn ghost" id="verify" disabled>Verify wiring</button>
+    </div>
+    <div id="status" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card" id="resultcard" style="display:none">
+    <h2>4 · Result</h2>
+    <div id="result"></div>
+    <p class="sub" style="margin:12px 0 6px">Paste this into <span class="mono">~/arcdesk/.env</span>
+    (or hand the two addresses to Claude to wire up the backend and site):</p>
+    <pre id="envout"></pre>
+  </div>
+
+  <div class="card">
+    <h2>Log</h2>
+    <div class="log mono" id="log" style="color:var(--muted)">waiting…</div>
+  </div>
+</div>
+
+<script src="bytecode.js"></script>
+<script>
+"use strict";
+
+const NETS = {
+  mainnet: {
+    source: { key:"source", label:"Base", chainId:"0x2105", rpc:"https://mainnet.base.org",
+              usdc:"0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", explorer:"https://basescan.org",
+              nativeCurrency:{name:"Ether",symbol:"ETH",decimals:18} },
+    arc:    { key:"arc", label:"Arc", chainId:"0x13b2", rpc:"https://rpc.arc-scan.org",
+              usdc:"0x3600000000000000000000000000000000000000", explorer:"https://arcscan.app",
+              nativeCurrency:{name:"USD Coin",symbol:"USDC",decimals:18} },
+    live: true,
+  },
+  testnet: {
+    source: { key:"source", label:"Base Sepolia", chainId:"0x14a34", rpc:"https://sepolia.base.org",
+              usdc:"0x036CbD53842c5426634e7929541eC2318f3dCF7e", explorer:"https://sepolia.basescan.org",
+              nativeCurrency:{name:"Ether",symbol:"ETH",decimals:18} },
+    arc:    { key:"arc", label:"Arc testnet", chainId:"0x4cef52", rpc:"https://rpc.testnet.arc.network",
+              usdc:"0x3600000000000000000000000000000000000000", explorer:"https://testnet.arcscan.app",
+              nativeCurrency:{name:"USD Coin",symbol:"USDC",decimals:18} },
+    live: false,
+  },
+};
+const SEL = { owner:"0x8da5cb5b", operator:"0x570ca735", usdc:"0x3e413bee", balanceOf:"0x70a08231" };
+
+const $ = (q) => document.querySelector(q);
+const pad = (h) => h.replace(/^0x/,"").toLowerCase().padStart(64,"0");
+const short = (a) => a.slice(0,6)+"…"+a.slice(-4);
+let account = null, deployed = { source:null, arc:null };
+
+function log(msg, kind) {
+  const el = $("#log");
+  if (el.textContent === "waiting…") el.textContent = "";
+  const line = document.createElement("div");
+  line.textContent = new Date().toLocaleTimeString() + "  " + msg;
+  if (kind === "err") line.style.color = "var(--crit)";
+  if (kind === "ok") line.style.color = "var(--good)";
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+function status(html, cls) { $("#status").innerHTML = html ? `<div class="${cls||'okbox'}">${html}</div>` : ""; }
+
+const STEPS = [
+  ["Connect wallet", "your account signs both deployments"],
+  ["Deploy payment leg", "on the source chain"],
+  ["Deploy liquidity leg", "on Arc"],
+  ["Verify on-chain", "usdc / owner / operator read back"],
+];
+function drawSteps(n) {
+  $("#steps").innerHTML = STEPS.map((s,i)=>
+    `<div class="step ${i<n?"done":i===n?"active":""}"><span class="k">${i<n?"✓":i+1}</span>
+     <div><b>${s[0]}</b><span>${s[1]}</span></div></div>`).join("");
+}
+drawSteps(0);
+
+async function rpcCall(url, method, params) {
+  const r = await fetch(url, { method:"POST", headers:{"content-type":"application/json"},
+    body: JSON.stringify({jsonrpc:"2.0",id:1,method,params}) });
+  const j = await r.json();
+  if (j.error) throw new Error(j.error.message);
+  return j.result;
+}
+
+async function ensureChain(net) {
+  const cur = await ethereum.request({ method:"eth_chainId" });
+  if (cur === net.chainId) return;
+  log(`switching wallet to ${net.label}…`);
+  try {
+    await ethereum.request({ method:"wallet_switchEthereumChain", params:[{chainId:net.chainId}] });
+  } catch (e) {
+    if (e.code === 4902 || /unrecognized|not been added/i.test(e.message||"")) {
+      log(`${net.label} not in wallet, adding it…`);
+      await ethereum.request({ method:"wallet_addEthereumChain", params:[{
+        chainId: net.chainId, chainName: net.label, rpcUrls:[net.rpc],
+        nativeCurrency: net.nativeCurrency, blockExplorerUrls:[net.explorer],
+      }]});
+      await ethereum.request({ method:"wallet_switchEthereumChain", params:[{chainId:net.chainId}] });
+    } else throw e;
+  }
+}
+
+async function refreshBalances() {
+  if (!account) return;
+  const cfg = NETS[$("#net").value];
+  const rows = [];
+  for (const net of [cfg.source, cfg.arc]) {
+    try {
+      const nativeHex = await rpcCall(net.rpc, "eth_getBalance", [account, "latest"]);
+      const native = Number(BigInt(nativeHex)) / 1e18;
+      const usdcHex = await rpcCall(net.rpc, "eth_call",
+        [{ to: net.usdc, data: SEL.balanceOf + pad(account) }, "latest"]);
+      const usdc = Number(BigInt(usdcHex || "0x0")) / 1e6;
+      rows.push(`<div class="kv"><span>${net.label}</span><b class="mono">${native.toFixed(6)} ${net.nativeCurrency.symbol} · ${usdc.toFixed(2)} USDC</b></div>`);
+    } catch (e) {
+      rows.push(`<div class="kv"><span>${net.label}</span><b style="color:var(--crit)">unreachable</b></div>`);
+    }
+  }
+  $("#balances").innerHTML = rows.join("");
+}
+
+$("#net").addEventListener("change", () => {
+  const cfg = NETS[$("#net").value];
+  $("#netwarn").style.display = cfg.live ? "block" : "none";
+  deployed = { source:null, arc:null };
+  $("#resultcard").style.display = "none";
+  drawSteps(account ? 1 : 0);
+  refreshBalances();
+});
+
+$("#connect").addEventListener("click", async () => {
+  if (!window.ethereum) return status("No wallet found. Install MetaMask or Rabby.", "err");
+  try {
+    const [a] = await ethereum.request({ method:"eth_requestAccounts" });
+    account = a;
+    $("#acct").textContent = a;
+    $("#go").disabled = false;
+    drawSteps(1);
+    log("connected " + short(a), "ok");
+    refreshBalances();
+  } catch (e) { status(e.message, "err"); }
+});
+
+async function deployOne(net, operator) {
+  await ensureChain(net);
+  // creation bytecode + abi-encoded constructor(IERC20 usdc, address operator)
+  const data = window.ARCDESK_BYTECODE + pad(net.usdc) + pad(operator);
+  log(`deploying on ${net.label} (${(data.length/2/1024).toFixed(1)} KB)…`);
+  const txHash = await ethereum.request({ method:"eth_sendTransaction",
+    params:[{ from: account, data }] });
+  log(`tx ${txHash}`);
+  status(`Waiting for confirmation on ${net.label}…`);
+  for (let i = 0; i < 90; i++) {
+    const rec = await rpcCall(net.rpc, "eth_getTransactionReceipt", [txHash]);
+    if (rec) {
+      if (rec.status !== "0x1") throw new Error(`deploy reverted on ${net.label}`);
+      log(`${net.label} → ${rec.contractAddress}`, "ok");
+      return rec.contractAddress;
+    }
+    await new Promise(r => setTimeout(r, 2500));
+  }
+  throw new Error(`${net.label}: no receipt after 3+ minutes (tx ${txHash})`);
+}
+
+$("#go").addEventListener("click", async () => {
+  const cfg = NETS[$("#net").value];
+  const operator = $("#operator").value.trim();
+  if (!/^0x[0-9a-fA-F]{40}$/.test(operator)) return status("Operator address is not valid.", "err");
+  if (cfg.live && !confirm("This deploys to MAINNET with real funds and cannot be undone.\n\nContinue?")) return;
+
+  $("#go").disabled = true;
+  try {
+    drawSteps(1);
+    deployed.source = await deployOne(cfg.source, operator);
+    drawSteps(2);
+    deployed.arc = await deployOne(cfg.arc, operator);
+    drawSteps(3);
+    await verify();
+    drawSteps(4);
+    showResult(cfg);
+    status("Both contracts deployed and verified.", "okbox");
+  } catch (e) {
+    log(e.message, "err");
+    status(e.message, "err");
+  } finally {
+    $("#go").disabled = false;
+    $("#verify").disabled = !(deployed.source && deployed.arc);
+  }
+});
+
+async function verify() {
+  const cfg = NETS[$("#net").value];
+  const pairs = [[cfg.source, deployed.source], [cfg.arc, deployed.arc]];
+  for (const [net, addr] of pairs) {
+    if (!addr) continue;
+    const read = async (sel) => "0x" + (await rpcCall(net.rpc, "eth_call", [{to:addr,data:sel},"latest"])).slice(-40);
+    const [u,o,op] = await Promise.all([read(SEL.usdc), read(SEL.owner), read(SEL.operator)]);
+    const okUsdc = u.toLowerCase() === net.usdc.toLowerCase();
+    const okOwner = o.toLowerCase() === account.toLowerCase();
+    const okOper = op.toLowerCase() === $("#operator").value.trim().toLowerCase();
+    log(`${net.label} verify — usdc:${okUsdc?"ok":"MISMATCH"} owner:${okOwner?"ok":"MISMATCH"} operator:${okOper?"ok":"MISMATCH"}`,
+        (okUsdc&&okOwner&&okOper)?"ok":"err");
+    if (!(okUsdc && okOwner && okOper)) throw new Error(`${net.label}: on-chain wiring does not match`);
+  }
+}
+$("#verify").addEventListener("click", () => verify().catch(e => status(e.message,"err")));
+
+function showResult(cfg) {
+  $("#resultcard").style.display = "block";
+  $("#result").innerHTML =
+    `<div class="kv"><span>${cfg.source.label} · payment leg</span><b class="mono">${deployed.source}</b></div>` +
+    `<div class="kv"><span>${cfg.arc.label} · liquidity leg</span><b class="mono">${deployed.arc}</b></div>` +
+    `<div class="kv"><span>owner (you)</span><b class="mono">${account}</b></div>` +
+    `<div class="kv"><span>operator (keeper)</span><b class="mono">${$("#operator").value.trim()}</b></div>`;
+  $("#envout").textContent =
+`SOURCE_RPC=${cfg.source.rpc}
+SOURCE_USDC=${cfg.source.usdc}
+SOURCE_ESCROW=${deployed.source}
+ARC_RPC=${cfg.arc.rpc}
+ARC_USDC=${cfg.arc.usdc}
+ARC_ESCROW=${deployed.arc}
+TREASURY=${account}
+FEE_BPS=200`;
+}
+
+if (window.ethereum) {
+  ethereum.on?.("accountsChanged", (a) => { account = a[0] || null; $("#acct").textContent = account || "not connected"; refreshBalances(); });
+  log("wallet detected");
+} else {
+  log("no wallet detected — install MetaMask or Rabby", "err");
+}
+</script>
+</body>
+</html>

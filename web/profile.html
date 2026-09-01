@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Profile · Arcdesk</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header><div class="wrap bar">
+  <a class="brand" href="index.html"><span class="spark">&#9672;</span> Arcdesk</a>
+  <nav class="menu">
+    <a href="index.html" data-page="trade">Trade</a>
+    <a href="post.html" data-page="post">Post offer</a>
+    <a href="orders.html" data-page="orders">Orders</a>
+    <a href="profile.html" data-page="profile">Profile</a>
+    <a href="how.html" data-page="how">How it works</a>
+    <a href="docs.html" data-page="docs">Docs</a>
+  </nav>
+  <div class="grow"></div>
+  <button class="themebtn" id="themebtn" aria-label="Toggle theme">☾</button>
+  <button class="connect" id="connect">Connect wallet</button>
+</div></header>
+<main><div class="wrap">
+
+<div class="pagehead">
+  <h1>Profile</h1>
+  <p>Your addresses, balances on both chains, and trading activity in one place.</p>
+</div>
+<div class="grid2">
+  <div class="card">
+    <h3>Wallet</h3>
+    <p class="note" style="margin-bottom:10px">Source (Base): <span class="mono" id="pr-addr">not connected</span></p>
+    <div class="statrow">
+      <div class="s"><b class="mono" id="pr-src">—</b><span>USDC · Base</span></div>
+      <div class="s"><b class="mono" id="pr-arc">—</b><span>USDC · Arc</span></div>
+    </div>
+    <div class="field"><label for="pr-arcaddr">Arc receive address (saved locally)</label>
+      <input class="input" id="pr-arcaddr" placeholder="0x… (defaults to your wallet address)"></div>
+    <button class="ghost" id="pr-save">Save</button>
+  </div>
+  <div class="card">
+    <h3>Activity</h3>
+    <div class="statrow">
+      <div class="s"><b class="mono" id="pr-trades">—</b><span>orders</span></div>
+      <div class="s"><b class="mono" id="pr-bought">—</b><span>USDC bought</span></div>
+      <div class="s"><b class="mono" id="pr-spent">—</b><span>USDC spent</span></div>
+    </div>
+    <div id="pr-recent"><p class="note">Connect your wallet to see activity.</p></div>
+  </div>
+</div>
+<div class="card" style="margin-top:14px">
+  <h3>Your open orders</h3>
+  <p class="note" style="margin-bottom:12px">Orders you posted to the book. Cancelling returns
+  any unfilled liquidity to your wallet immediately; slices already reserved for a buyer return
+  when their deadline passes.</p>
+  <div id="pr-posted"><p class="note">Connect your wallet to see them.</p></div>
+</div>
+
+<div class="card" style="margin-top:14px">
+  <h3>Settings</h3>
+  <div class="field"><label for="pr-api">Backend API URL</label><input class="input" id="pr-api"></div>
+  <button class="ghost" id="pr-apisave">Save API URL</button>
+</div>
+
+</div></main>
+<footer><div class="wrap">
+  <span class="flag">MAINNET · UNAUDITED</span>
+  Unaudited contracts on Base and Arc mainnet. Every payment is escrowed on-chain with a
+  permissionless timeout refund. Not affiliated with Circle or Arc.
+  <span class="grow" style="flex:1"></span><span>Arcdesk</span>
+</div></footer>
+<script src="app.js"></script>
+<script>
+initNav("profile");
+$("#pr-api").value = CFG.api;
+$("#pr-apisave").addEventListener("click", () => {
+  localStorage.setItem("arcdesk.api", $("#pr-api").value.trim());
+  toast("API URL saved. Reloading…"); setTimeout(() => location.reload(), 800);
+});
+$("#pr-arcaddr").value = localStorage.getItem("arcdesk.arcaddr") || "";
+$("#pr-save").addEventListener("click", () => {
+  localStorage.setItem("arcdesk.arcaddr", $("#pr-arcaddr").value.trim());
+  toast("Saved.");
+});
+async function load() {
+  if (!wallet.addr) return;
+  $("#pr-addr").textContent = wallet.addr;
+  readUsdc(CFG.sourceRpc, CFG.sourceUsdc, wallet.addr).then((v) => $("#pr-src").textContent = fmt6(v)).catch(() => {});
+  const arcAddr = localStorage.getItem("arcdesk.arcaddr") || wallet.addr;
+  readUsdc(CFG.arcRpc, CFG.arcUsdc, arcAddr).then((v) => $("#pr-arc").textContent = fmt6(v)).catch(() => {});
+  try {
+    const { orders } = await api("/address/" + wallet.addr + "/orders");
+    const done = orders.filter((o) => o.status === "delivered");
+    $("#pr-trades").textContent = orders.length;
+    $("#pr-bought").textContent = fmt6(String(done.reduce((s, o) => s + BigInt(o.amount), 0n)));
+    $("#pr-spent").textContent = fmt6(String(done.reduce((s, o) => s + BigInt(o.proceeds) + BigInt(o.fee), 0n)));
+    $("#pr-recent").innerHTML = orders.slice(0, 5).map((o) =>
+      "<p style='display:flex;gap:10px;align-items:center;margin:6px 0'><span class='mono' style='color:var(--faint)'>" +
+      o.orderId.slice(0, 10) + "…</span> <span class='mono'>" + fmt6(o.amount) + " USDC</span> " +
+      statusBadge(o.status) + "</p>").join("") || '<p class="note">No orders yet.</p>';
+  } catch {}
+}
+// Orders you POSTED (asks on Arc, bids on the source chain) are separate from orders you took.
+async function loadPosted() {
+  if (!wallet.addr) return;
+  const el = $("#pr-posted");
+  try {
+    const [o, b, h] = await Promise.all([api("/offers"), api("/bids"), api("/health")]);
+    const mine = [
+      ...o.offers.filter((x) => x.maker.toLowerCase() === wallet.addr.toLowerCase())
+        .map((x) => ({ ...x, side: "ask", chain: "arc", escrow: h.arcEscrow })),
+      ...b.bids.filter((x) => x.bidder.toLowerCase() === wallet.addr.toLowerCase())
+        .map((x) => ({ ...x, side: "bid", chain: "source", escrow: h.sourceEscrow })),
+    ];
+    if (!mine.length) {
+      el.innerHTML = '<p class="note">No open orders. <a href="post.html">Post one</a>.</p>';
+      return;
+    }
+    el.innerHTML = '<div class="tblwrap"><table class="tbl"><tr><th>Side</th><th>Remaining</th>' +
+      '<th>Premium</th><th>Window</th><th></th></tr>' + mine.map((x) => {
+        const badge = x.side === "ask"
+          ? '<span class="badge done">Ask · selling</span>'
+          : '<span class="badge pending">Bid · buying</span>';
+        const win = x.expiry === 0
+          ? '<span style="color:var(--teal)">open-ended</span>'
+          : new Date(x.expiry * 1000).toLocaleString();
+        return `<tr><td>${badge}</td><td class="mono">${fmt6(x.remaining)} USDC</td>` +
+          `<td class="mono">+${x.premiumBps / 100}%</td><td>${win}</td>` +
+          `<td><button class="ghost" data-cancel="${x.offerId}" data-chain="${x.chain}" data-escrow="${x.escrow}">Cancel</button></td></tr>`;
+      }).join("") + "</table></div>";
+    $$("[data-cancel]").forEach((btn) => btn.addEventListener("click", async () => {
+      try {
+        btn.disabled = true;
+        const tx = await wallet.send(btn.dataset.escrow,
+          SEL_CANCEL_OFFER + pad32(btn.dataset.cancel), btn.dataset.chain);
+        await wallet.waitTx(tx, btn.dataset.chain);
+        toast("Order cancelled, liquidity returned.");
+        setTimeout(loadPosted, 12000);
+      } catch (e) { toast(e.message, "err"); btn.disabled = false; }
+    }));
+  } catch (e) { el.innerHTML = `<p class="note err">${e.message}</p>`; }
+}
+
+if (wallet.addr) { load(); loadPosted(); }
+else $("#connect").addEventListener("click", () => setTimeout(() => { load(); loadPosted(); }, 800));
+setInterval(loadPosted, 15000);
+</script>
+</body>
+</html>

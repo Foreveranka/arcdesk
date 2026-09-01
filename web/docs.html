@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Docs · Arcdesk</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header><div class="wrap bar">
+  <a class="brand" href="index.html"><span class="spark">&#9672;</span> Arcdesk</a>
+  <nav class="menu">
+    <a href="index.html" data-page="trade">Trade</a>
+    <a href="post.html" data-page="post">Post offer</a>
+    <a href="orders.html" data-page="orders">Orders</a>
+    <a href="profile.html" data-page="profile">Profile</a>
+    <a href="how.html" data-page="how">How it works</a>
+    <a href="docs.html" data-page="docs">Docs</a>
+  </nav>
+  <div class="grow"></div>
+  <button class="themebtn" id="themebtn" aria-label="Toggle theme">☾</button>
+  <button class="connect" id="connect">Connect wallet</button>
+</div></header>
+<main><div class="wrap doc">
+
+<div class="pagehead">
+  <h1>Docs</h1>
+  <p>The complete reference for trading on, making on, and integrating with Arcdesk. The desk is a
+  non-custodial tool: these documents plus the contract source are the entire trust model — there
+  is no fine print anywhere else.</p>
+  <p class="note" id="netline">Network: loading…</p>
+</div>
+
+<p style="font-size:13.5px;color:var(--muted)">
+  <a href="#networks">Networks</a> ·
+  <a href="#lifecycle">Order lifecycle</a> ·
+  <a href="#taker">Taker guide</a> ·
+  <a href="#maker">Maker guide</a> ·
+  <a href="#fees">Fees &amp; timeouts</a> ·
+  <a href="#contract">Contract reference</a> ·
+  <a href="#api">REST API</a> ·
+  <a href="#arc">Arc specifics</a> ·
+  <a href="#security">Security &amp; trust</a> ·
+  <a href="#review">Security review</a> ·
+  <a href="#faq">FAQ</a>
+</p>
+
+<h2 id="networks">Networks &amp; contracts</h2>
+<p style="color:var(--muted);font-size:13.5px">Addresses below are read live from the desk API, so
+they are always the pair this deployment actually settles on. Verify independently before sending
+funds: call <code>usdc()</code> and <code>operator()</code> on each escrow and check they match this page.</p>
+<div class="tblwrap"><table class="tbl" id="nettbl">
+  <tr><th>Leg</th><th>Chain</th><th>Chain ID</th><th>Contract</th></tr>
+  <tr><td>Payment</td><td id="n-src-chain">—</td><td class="mono" id="n-src-id">—</td><td class="mono" id="n-src-esc">—</td></tr>
+  <tr><td>Liquidity</td><td id="n-arc-chain">—</td><td class="mono" id="n-arc-id">—</td><td class="mono" id="n-arc-esc">—</td></tr>
+  <tr><td>USDC (payment side)</td><td id="n-src-chain2">—</td><td class="mono" id="n-src-id2">—</td><td class="mono" id="n-src-usdc">—</td></tr>
+  <tr><td>USDC (Arc)</td><td>Arc</td><td class="mono" id="n-arc-id2">—</td><td class="mono">0x3600000000000000000000000000000000000000</td></tr>
+</table></div>
+<p style="color:var(--muted);font-size:13.5px;margin-top:8px">Both legs run the <b>same bytecode</b>
+(<code>ArcdeskEscrow.sol</code>). Nothing configures a contract into a role; the chain it sits on
+decides which half of the interface gets used. One audit therefore covers both deployments.</p>
+
+<h2 id="lifecycle">Order lifecycle</h2>
+<pre><code>quoted ──▶ reserved ──▶ paid ──▶ maker_paid ──▶ delivered
+                │           │
+                │           └── payment deadline passes ──▶ refunded   (your money back)
+                └── reservation deadline passes ──▶ liquidity returns to the offer</code></pre>
+<div class="tblwrap"><table class="tbl">
+  <tr><th>State</th><th>On-chain meaning</th><th>Who acted</th></tr>
+  <tr><td class="mono">quoted</td><td>Order priced; nothing on-chain yet</td><td>API</td></tr>
+  <tr><td class="mono">reserved</td><td><code>reserve()</code> confirmed on Arc: maker liquidity is locked to your address under a hashlock, for &ge;90 min</td><td>Desk keeper</td></tr>
+  <tr><td class="mono">paid</td><td><code>lockPayment()</code> confirmed on the payment chain: your funds escrowed under the same hashlock, &le;30 min</td><td>You (your only transaction)</td></tr>
+  <tr><td class="mono">maker_paid</td><td><code>claimPayment()</code> confirmed: maker took the payment, and doing so published the secret on-chain</td><td>Maker</td></tr>
+  <tr><td class="mono">delivered</td><td><code>claimReservation()</code> confirmed on Arc: your USDC left escrow to your address</td><td>Anyone (the desk submits it for you)</td></tr>
+  <tr><td class="mono">refunded</td><td><code>refundPayment()</code> after the deadline: full escrow returned to you</td><td>Anyone (button on Orders, or cast)</td></tr>
+</table></div>
+
+<h2 id="taker">Taker guide — buying USDC on Arc</h2>
+<ol style="color:var(--muted);font-size:14px;line-height:1.7">
+  <li><b>Pick an offer</b> on the Trade page. The price you compare is the premium; the 2% desk fee is the same everywhere.</li>
+  <li><b>Enter amount + your Arc address.</b> Any address you control on Arc; it does not need gas, history, or a balance.</li>
+  <li><b>Get quote &amp; reserve.</b> Before you pay anything, the desk locks your USDC out of the maker's offer, addressed to you. You can verify this yourself: read <code>reservations(orderId)</code> on the Arc escrow and check <code>recipient</code> is your address and <code>deadline</code> is comfortably after your payment deadline.</li>
+  <li><b>Approve + pay</b> — two wallet transactions on the payment chain. The second escrows <code>proceeds + fee</code> under the hashlock. This is the last thing you ever have to do.</li>
+  <li><b>Wait ~a minute.</b> The maker claims your payment (publishing the secret) and the desk delivers your USDC on Arc. You pay no Arc gas at any point.</li>
+</ol>
+<p class="note">If nothing is delivered: your money is not gone, it is locked with a countdown.
+After the payment deadline (max 30 minutes) the <b>Refund</b> button on Orders returns it — or from
+any wallet: <code>refundPayment(orderId, payer)</code> on the payment escrow. The desk cannot block this.</p>
+
+<h2 id="maker">Maker guide — selling USDC on Arc</h2>
+<p style="color:var(--muted);font-size:14px">You escrow USDC on Arc behind an offer priced at your
+premium. When a buyer's payment is locked on the payment chain, claiming that payment is what
+releases your escrowed USDC to them — you can never lose the USDC without simultaneously receiving
+the payment, and the buyer can never take your USDC without you being paid.</p>
+<div class="tblwrap"><table class="tbl">
+  <tr><th>Action</th><th>Call</th><th>Notes</th></tr>
+  <tr><td>Post an offer</td><td class="mono">approve() + postOffer(offerId, amount, premiumBps, expiry)</td><td><code>offerId</code>: any unused 32-byte id (hash something unique). <code>premiumBps</code>: 800 = 8%. <code>expiry</code>: unix timestamp, or <b>0 for open-ended</b>.</td></tr>
+  <tr><td>Top up</td><td class="mono">fundOffer(offerId, amount)</td><td>Adds liquidity to a live offer.</td></tr>
+  <tr><td>Close &amp; withdraw</td><td class="mono">cancelOffer(offerId)</td><td>Instant for unreserved liquidity. Reserved slices come back automatically when their reservations expire unclaimed.</td></tr>
+  <tr><td>Sweep an expired offer</td><td class="mono">expireOffer(offerId)</td><td>Permissionless housekeeping for time-limited offers; open-ended offers only close via cancel.</td></tr>
+</table></div>
+<pre><code># post 100 USDC at 8%, open-ended, from your Arc wallet
+cast send $ARC_USDC "approve(address,uint256)" $ARC_ESCROW 100000000 \
+  --rpc-url $ARC_RPC --private-key $KEY --legacy
+cast send $ARC_ESCROW "postOffer(bytes32,uint256,uint16,uint64)" \
+  $(cast keccak "my-offer-$(date +%s)") 100000000 800 0 \
+  --rpc-url $ARC_RPC --private-key $KEY --legacy</code></pre>
+<p style="color:var(--muted);font-size:13.5px">Maker accounts pay Arc gas (which is USDC), so keep a
+little slack beyond your offer size. Today the settlement secret is generated by the desk when it
+quotes an order against your offer; a maker API where you bring your own hashlock (so the desk never
+holds the secret) is the next milestone and will be required for third-party makers on mainnet.</p>
+
+<h2 id="fees">Fees, premiums, timeouts</h2>
+<div class="tblwrap"><table class="tbl">
+  <tr><th>Parameter</th><th>Value</th><th>Where enforced</th></tr>
+  <tr><td>Desk fee</td><td class="mono" id="feeline">2%</td><td>Quoted into <code>lockPayment</code>; paid by the taker to the treasury at settlement</td></tr>
+  <tr><td>Maker premium</td><td class="mono">0 – 655.35% (uint16 bps)</td><td>Set per offer; the market decides what clears</td></tr>
+  <tr><td>Payment window</td><td class="mono">&le; 30 min — MAX_PAYMENT_WINDOW</td><td>Contract rejects longer locks; after the deadline <code>refundPayment</code> is open to anyone</td></tr>
+  <tr><td>Reservation window</td><td class="mono">&ge; 90 min — MIN_RESERVATION_WINDOW</td><td>Contract rejects shorter reservations, so delivery always outlives payment by &ge;1h</td></tr>
+  <tr><td>Offer expiry</td><td class="mono">maker's choice or 0 (open-ended)</td><td>Expired offers stop reserving instantly; sweep is permissionless</td></tr>
+</table></div>
+<p style="color:var(--muted);font-size:13.5px">Quote math for buying <code>A</code> USDC at premium
+<code>p</code> bps: <code>proceeds = A × (10000 + p) / 10000</code>, <code>fee = proceeds × feeBps / 10000</code>,
+you pay <code>proceeds + fee</code>. All amounts are 6-decimal USDC integers; division truncates.</p>
+
+<h2 id="contract">Contract reference — ArcdeskEscrow</h2>
+<p style="color:var(--muted);font-size:13.5px">Solidity ^0.8.24, OpenZeppelin SafeERC20 +
+ReentrancyGuard. All state-changing functions are nonReentrant. No proxy, no upgradability, no
+pause on refund paths.</p>
+<h3 style="font-size:14.5px;margin-top:16px">Liquidity leg (Arc)</h3>
+<div class="tblwrap"><table class="tbl">
+  <tr><th>Function</th><th>Access</th><th>Reverts with</th></tr>
+  <tr><td class="mono">postOffer(bytes32,uint256,uint16,uint64)</td><td>anyone</td><td class="mono">offer exists · zero amount · bad expiry</td></tr>
+  <tr><td class="mono">fundOffer(bytes32,uint256)</td><td>maker</td><td class="mono">not maker · inactive · zero amount</td></tr>
+  <tr><td class="mono">cancelOffer(bytes32)</td><td>maker</td><td class="mono">not maker</td></tr>
+  <tr><td class="mono">expireOffer(bytes32)</td><td>anyone</td><td class="mono">no offer · open-ended · not expired · inactive</td></tr>
+  <tr><td class="mono">reserve(bytes32,bytes32,address,uint256,bytes32,uint64)</td><td>operator</td><td class="mono">not operator · order exists · bad recipient · bad hashlock · reservation too short · inactive · offer expired · insufficient</td></tr>
+  <tr><td class="mono">claimReservation(bytes32,bytes32)</td><td>anyone</td><td class="mono">not reserved · bad preimage</td></tr>
+  <tr><td class="mono">refundReservation(bytes32)</td><td>anyone</td><td class="mono">not reserved · not yet</td></tr>
+</table></div>
+<h3 style="font-size:14.5px;margin-top:16px">Payment leg (source chain)</h3>
+<div class="tblwrap"><table class="tbl">
+  <tr><th>Function</th><th>Access</th><th>Reverts with</th></tr>
+  <tr><td class="mono">lockPayment(bytes32,address,address,uint256,uint256,bytes32,uint64)</td><td>anyone (the taker)</td><td class="mono">order exists · bad payee · bad hashlock · deadline passed · payment window too long</td></tr>
+  <tr><td class="mono">claimPayment(bytes32,address,bytes32)</td><td>anyone with the preimage</td><td class="mono">not locked · bad preimage</td></tr>
+  <tr><td class="mono">refundPayment(bytes32,address)</td><td>anyone</td><td class="mono">not locked · not yet</td></tr>
+</table></div>
+<h3 style="font-size:14.5px;margin-top:16px">Admin surface (deliberately small)</h3>
+<div class="tblwrap"><table class="tbl">
+  <tr><th>Function</th><th>Access</th><th>Blast radius</th></tr>
+  <tr><td class="mono">setOperator(address)</td><td>owner</td><td>Changes who may reserve. Cannot touch escrowed funds or refund paths.</td></tr>
+  <tr><td class="mono">transferOwnership(address)</td><td>owner</td><td>Hands over the above. Nothing else.</td></tr>
+</table></div>
+<h3 style="font-size:14.5px;margin-top:16px">Events</h3>
+<pre><code>OfferPosted(offerId, maker, amount, premiumBps, expiry)
+OfferFunded(offerId, amount)          OfferCancelled(offerId, returned)
+OfferExpired(offerId, returned)
+Reserved(orderId, offerId, recipient, amount, hashlock, deadline)
+ReservationClaimed(orderId, preimage) ReservationRefunded(orderId, amount)
+PaymentLocked(orderId, payer, maker, proceeds, fee, hashlock, deadline)
+PaymentClaimed(orderId, preimage)     PaymentRefunded(orderId)
+OperatorChanged(operator)             OwnerChanged(owner)</code></pre>
+<p style="color:var(--muted);font-size:13.5px">Hashlock scheme: <code>hashlock = keccak256(abi.encodePacked(secret))</code>
+where <code>secret</code> is 32 bytes generated by the maker side. Revealing it in either
+<code>claim*</code> makes it public for the other chain — that is the entire cross-chain binding;
+there is no bridge, oracle, or messaging layer to trust.</p>
+
+<h2 id="api">REST API</h2>
+<p style="color:var(--muted);font-size:13.5px">Base URL: the origin serving this page (configurable
+under Profile → Settings). JSON in/out. Amounts are 6-decimal integer strings. No authentication —
+the API can only do things that are safe for anyone to do; your funds are guarded by the contracts,
+not by this server.</p>
+<div class="tblwrap"><table class="tbl">
+  <tr><th>Endpoint</th><th>Returns</th></tr>
+  <tr><td class="mono">GET /health</td><td class="mono">{ ok, keeper, sourceEscrow, arcEscrow, feeBps }</td></tr>
+  <tr><td class="mono">GET /offers</td><td class="mono">{ offers: [{ offerId, maker, remaining, premiumBps, expiry }] }</code> — expiry 0 = open-ended</td></tr>
+  <tr><td class="mono">GET /stats</td><td class="mono">{ trades, volume6, fees6 }</td></tr>
+  <tr><td class="mono">POST /orders</td><td>Reserves on Arc first, then returns exact <code>lockPayment</code> args (below)</td></tr>
+  <tr><td class="mono">GET /orders/:id</td><td>Order row incl. <code>status</code> and settlement tx hashes</td></tr>
+  <tr><td class="mono">GET /address/:addr/orders</td><td>History for a taker address (latest 100)</td></tr>
+</table></div>
+<pre><code>POST /orders
+{ "offerId": "0x…", "amount6": "10000000",
+  "takerSource": "0xYourPaymentChainAddr", "recipientArc": "0xYourArcAddr" }
+
+200 →
+{ "orderId": "0x…", "escrow": "0x…", "usdc": "0x…",
+  "lockPayment": { "orderId", "maker", "treasury", "proceeds", "fee", "hashlock", "deadline" },
+  "totalPay": "…", "payDeadline": …, "resvDeadline": … }
+
+errors: 404 offer not found · 409 not enough liquidity · 410 offer expired · 400 bad address</code></pre>
+<p style="color:var(--muted);font-size:13.5px">Integration contract: send exactly one
+<code>approve(escrow, proceeds+fee)</code> then <code>lockPayment(…)</code> with the returned args,
+then poll <code>GET /orders/:id</code> until <code>delivered</code>. If you see <code>refunded</code>
+or your deadline passes, call <code>refundPayment(orderId, payer)</code> yourself — never resend a payment
+for the same orderId (the contract rejects duplicates).</p>
+
+<h2 id="arc">Arc-specific behavior</h2>
+<ul style="color:var(--muted);font-size:14px;line-height:1.7">
+  <li><b>USDC is the gas token.</b> The ERC-20 view at <code>0x3600…0000</code> is the account's native balance ÷ 10¹² (6-decimal surface over an 18-decimal core). One pool of funds, two interfaces.</li>
+  <li><b>Transfers run through chain precompiles</b> (<code>0x1800…0000</code> balances, <code>0x1800…0001</code> compliance). This is why fresh Arc accounts can receive but not send — and why the desk delivers <i>to</i> you instead of asking you to claim.</li>
+  <li><b>Circle operates a blocklist</b> at the chain level. A blocklisted address cannot move USDC, and that includes escrow contracts. This is an external risk the desk cannot remove; it is disclosed here because you should size positions knowing it exists.</li>
+  <li><b>Timestamps can stall on Arc</b> when blocks are sparse. The contract windows are generous (90 min floor) partly for this reason.</li>
+</ul>
+
+<h2 id="security">Security &amp; trust model</h2>
+<div class="tblwrap"><table class="tbl">
+  <tr><th>Party</th><th>Can do</th><th>Cannot do</th></tr>
+  <tr><td>Desk / keeper</td><td>Stall a trade (not reserve, not deliver)</td><td>Take escrowed funds. Reserved liquidity only pays the pre-committed recipient; payments only pay the maker + treasury named at lock time; refunds are permissionless.</td></tr>
+  <tr><td>Maker</td><td>Decline to claim (trade times out, you get refunded)</td><td>Take your payment without releasing your USDC — claiming publishes the secret that unlocks your delivery, and the contract forces the delivery window to outlive the payment window by &ge;1h.</td></tr>
+  <tr><td>Contract owner</td><td>Swap the operator</td><td>Touch funds, block refunds, upgrade code (there is no proxy).</td></tr>
+  <tr><td>Circle (Arc)</td><td>Blocklist any Arc address, including the escrow</td><td>— (external, disclosed above)</td></tr>
+</table></div>
+<p style="color:var(--muted);font-size:14px"><b>Audit status: unaudited.</b> 29 automated tests
+(unit + fork) and live settlement runs back the current deployment, and mainnet will launch behind
+per-trade and total-value caps that are raised gradually — but unaudited means unaudited. Do not
+put in more than you can lose, and read the ~350 lines of <code>ArcdeskEscrow.sol</code> yourself;
+it is short on purpose.</p>
+
+<h2 id="review">Security review (adversarial)</h2>
+<p style="color:var(--muted);font-size:13.5px">The system was tested from an attacker's seat, on
+contracts and the live API. Findings and their status:</p>
+<div class="tblwrap"><table class="tbl">
+  <tr><th>Finding</th><th>Severity</th><th>Status</th></tr>
+  <tr><td>Order-id front-run: lock dust under a public orderId to block the real taker (DoS)</td><td>Medium</td><td>FIXED — payments keyed by (orderId, payer); slots are independent</td></tr>
+  <tr><td>Keeper claims any hashlock-matching payment, so a forged lock could reveal the secret early</td><td>High</td><td>FIXED — keeper only claims the exact quoted payment (payer, maker, amounts)</td></tr>
+  <tr><td>Unauthenticated POST /orders reserves maker liquidity for free (griefing)</td><td>High (practical)</td><td>MITIGATED — per-offer cap of 3 unpaid reservations, per-IP rate limit, auto-refund sweeper at the reservation deadline</td></tr>
+  <tr><td>Raw SQLite error string returned on bad input</td><td>Low (info leak)</td><td>FIXED — strict input validation, clean errors</td></tr>
+  <tr><td>Operator can drain any maker's offer (compromised/rogue keeper)</td><td>High (design)</td><td>KNOWN — inherent keeper trust for makers; the fix is maker-signed reservations (EIP-712), a prerequisite before third-party makers on mainnet. Today the desk is the only maker, so no third-party funds are at risk.</td></tr>
+</table></div>
+<p style="color:var(--muted);font-size:13.5px">Attacks the design already refuses: redirecting a
+delivery or payment, refunding to a non-payer, forging or replaying a claim, refunding a reservation
+early, seizing admin, and the owner touching escrowed funds — all covered by the automated suite.</p>
+
+<h2 id="faq">FAQ</h2>
+<p><b>Why does USDC cost more than $1 here?</b><br>
+<span style="color:var(--muted);font-size:14px">Arc is a closed network: official bridges are shut, so USDC already inside trades at a premium set by makers. When Circle opens the door, premiums collapse — this market exists exactly as long as it stays closed, and we say so openly.</span></p>
+<p><b>Do I need anything on Arc first?</b><br>
+<span style="color:var(--muted);font-size:14px">No. An empty address you control is enough. You never send an Arc transaction; delivery comes to you.</span></p>
+<p><b>What if the site disappears mid-trade?</b><br>
+<span style="color:var(--muted);font-size:14px">Your payment sits in a contract with a &le;30-minute deadline. After it passes, <code>refundPayment(orderId, payer)</code> from any wallet returns everything. The orderId is on your Orders page and in the <code>PaymentLocked</code> event your own wallet emitted.</span></p>
+<p><b>Can I trade the other direction (Arc → out)?</b><br>
+<span style="color:var(--muted);font-size:14px">The contract already supports it (the legs are symmetric); the desk UI ships buy-side first. Sell-side opens when there is maker demand for it.</span></p>
+<p><b>Is there an official token, points, or airdrop?</b><br>
+<span style="color:var(--muted);font-size:14px">No. Anyone claiming otherwise in our name is scamming you.</span></p>
+</div></main>
+<footer><div class="wrap">
+  <span class="flag">MAINNET · UNAUDITED</span>
+  Unaudited contracts on Base and Arc. Every payment is escrowed on-chain with a
+  permissionless timeout refund. Not affiliated with Circle or Arc.
+  <span class="grow" style="flex:1"></span><span>Arcdesk</span>
+</div></footer>
+<script src="app.js"></script>
+<script>
+initNav("docs");
+// Populate the network table from the live desk API so docs never drift from the deployment.
+(async () => {
+  try {
+    const h = await api("/health");
+    const isMainnet = CFG.sourceChainId !== "0x14a34";
+    $("#netline").innerHTML = "Network: <b>" + (isMainnet ? "MAINNET" : "Testnet (Base \u2194 Arc)") +
+      "</b> · desk fee <b>" + (h.feeBps / 100) + "%</b> · keeper <span class='mono'>" + h.keeper + "</span>";
+    $("#n-src-chain").textContent = isMainnet ? "Base" : "Base";
+    $("#n-src-chain2").textContent = isMainnet ? "Base" : "Base";
+    $("#n-src-id").textContent = parseInt(CFG.sourceChainId, 16);
+    $("#n-src-id2").textContent = parseInt(CFG.sourceChainId, 16);
+    $("#n-src-esc").textContent = h.sourceEscrow;
+    $("#n-src-usdc").textContent = CFG.sourceUsdc;
+    $("#n-arc-chain").textContent = isMainnet ? "Arc" : "Arc";
+    $("#n-arc-id").textContent = isMainnet ? "5042" : "5042002";
+    $("#n-arc-id2").textContent = isMainnet ? "5042" : "5042002";
+    $("#n-arc-esc").textContent = h.arcEscrow;
+    $("#feeline").textContent = (h.feeBps / 100) + "%";
+  } catch {
+    $("#netline").innerHTML = "Network info unavailable — the desk API is unreachable. " +
+      "Set the API URL under <a href='profile.html'>Profile → Settings</a>.";
+  }
+})();
+</script>
+</body>
+</html>

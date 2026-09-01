@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How it works · Arcdesk</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header><div class="wrap bar">
+  <a class="brand" href="index.html"><span class="spark">&#9672;</span> Arcdesk</a>
+  <nav class="menu">
+    <a href="index.html" data-page="trade">Trade</a>
+    <a href="post.html" data-page="post">Post offer</a>
+    <a href="orders.html" data-page="orders">Orders</a>
+    <a href="profile.html" data-page="profile">Profile</a>
+    <a href="how.html" data-page="how">How it works</a>
+    <a href="docs.html" data-page="docs">Docs</a>
+  </nav>
+  <div class="grow"></div>
+  <button class="themebtn" id="themebtn" aria-label="Toggle theme">☾</button>
+  <button class="connect" id="connect">Connect wallet</button>
+</div></header>
+<main><div class="wrap">
+
+<div class="pagehead">
+  <h1>How it works</h1>
+  <p>Arcdesk is a non-custodial OTC desk for moving USDC from Base to the Arc Network. The desk
+  never holds your funds: every step lives in an escrow contract with a timeout you can always
+  reclaim from yourself.</p>
+</div>
+<div class="card" style="margin-bottom:14px">
+  <h3>A trade, step by step</h3>
+  <ul class="steps">
+    <li class="done"><span class="k">1</span><div class="tx"><b>The maker commits first</b>
+      <span>Your USDC is reserved from a maker's offer on Arc, addressed to you, before you pay a cent. The reservation is locked for at least 90 minutes.</span></div></li>
+    <li class="done"><span class="k">2</span><div class="tx"><b>You pay once, on Base</b>
+      <span>One payment covering the maker's price plus the 2% desk fee, escrowed under a hashlock. This is the only transaction you ever send, and it can be locked for at most 30 minutes.</span></div></li>
+    <li class="done"><span class="k">3</span><div class="tx"><b>The maker takes the payment</b>
+      <span>Claiming it reveals a secret on-chain. That same secret is the only key that opens your reservation on Arc.</span></div></li>
+    <li class="done"><span class="k">4</span><div class="tx"><b>Your USDC is delivered on Arc</b>
+      <span>With the secret public, anyone can trigger the delivery — the desk does it for you. You never need Arc gas, which matters because Arc's gas token IS USDC.</span></div></li>
+  </ul>
+</div>
+<div class="grid2">
+  <div class="card">
+    <h3>What if something stalls?</h3>
+    <p style="color:var(--muted);font-size:14px">If the maker never claims your payment, it unlocks
+    after the deadline and the <b>Refund</b> button on your Orders page returns it — a permissionless
+    contract call from your own wallet that nobody, including us, can switch off. If the maker takes
+    the payment, the secret is public and the delivery on Arc stays claimable long after — the
+    contract forces reservations to outlive payments by at least an hour.</p>
+  </div>
+  <div class="card">
+    <h3>Why premiums exist</h3>
+    <p style="color:var(--muted);font-size:14px">Arc is a closed mainnet: the official bridges are
+    not open, so USDC already inside the network trades above face value. Makers price that scarcity;
+    the premium is theirs, the 2% fee is the desk's. When Circle opens the bridge, premiums die —
+    this is a market for exactly as long as the door stays shut.</p>
+  </div>
+</div>
+<div class="card" style="margin-top:14px">
+  <h3>Contracts (mainnet)</h3>
+  <div class="tblwrap"><table class="tbl">
+    <tr><th>Leg</th><th>Chain</th><th>Address</th></tr>
+    <tr><td>Payment</td><td>Base (8453)</td><td class="mono">0x663b1167456Ae4B52f3b226206B28cBc309c0a3a</td></tr>
+    <tr><td>Liquidity</td><td>Arc (5042)</td><td class="mono">0x9f06B98B19EeB1bA17d8602D28e39a7350a8091b</td></tr>
+  </table></div>
+  <p class="note warn" style="margin-top:12px">Mainnet. Contracts are unaudited — do not point
+  this at real funds. Both legs run the same bytecode, and every refund path is permissionless.</p>
+</div>
+
+</div></main>
+<footer><div class="wrap">
+  <span class="flag">MAINNET · UNAUDITED</span>
+  Unaudited contracts on Base and Arc. Every payment is escrowed on-chain with a
+  permissionless timeout refund. Not affiliated with Circle or Arc.
+  <span class="grow" style="flex:1"></span><span>Arcdesk</span>
+</div></footer>
+<script src="app.js"></script>
+<script>initNav("how");</script>
+</body>
+</html>

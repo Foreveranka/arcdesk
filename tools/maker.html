@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arcdesk Maker</title>
+<link rel="icon" type="image/svg+xml" href="../web/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--ground:#0d1117;--surface:#161b22;--line:#262d38;--line-strong:#333c49;--ink:#e8ecf2;
+        --muted:#98a2b3;--faint:#6b7482;--teal:#35d0ba;--teal-soft:#12312e;--amber:#f5a524;
+        --amber-soft:#35290f;--good:#3fb950;--crit:#f85149;--crit-soft:#3a1a18;color-scheme:dark}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:Archivo,system-ui,sans-serif;line-height:1.5}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+  .wrap{max-width:820px;margin:0 auto;padding:28px 20px 70px}
+  h1{font-size:26px;font-weight:800;margin:0 0 6px;letter-spacing:-.01em}
+  h2{font-size:16px;margin:0 0 12px}
+  .sub{color:var(--muted);font-size:14px;max-width:64ch;margin:0 0 16px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px}
+  .warn{background:var(--amber-soft);color:var(--amber);border-radius:10px;padding:12px 14px;font-size:13.5px;margin-bottom:16px}
+  .err{background:var(--crit-soft);color:var(--crit);border-radius:10px;padding:11px 13px;font-size:13px}
+  .okbox{background:color-mix(in srgb,var(--good) 14%,transparent);color:var(--good);border-radius:10px;padding:11px 13px;font-size:13px}
+  button{font-family:inherit;cursor:pointer}
+  .btn{height:44px;padding:0 20px;border-radius:11px;border:0;background:var(--teal);color:#04211d;font-weight:700;font-size:14.5px}
+  .btn:disabled{opacity:.45;cursor:default}
+  .btn.ghost{background:none;border:1px solid var(--line-strong);color:var(--ink)}
+  .btn.danger{background:none;border:1px solid var(--crit);color:var(--crit)}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .kv{display:flex;justify-content:space-between;gap:14px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+  .kv:last-child{border-bottom:0}.kv span{color:var(--muted)}.kv b{font-weight:600;word-break:break-all;text-align:right}
+  input,select{height:42px;padding:0 12px;border-radius:10px;border:1px solid var(--line-strong);background:var(--ground);color:var(--ink);font-family:"IBM Plex Mono",monospace;font-size:13.5px;width:100%}
+  label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:0 0 6px}
+  .field{margin-bottom:13px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:640px){.grid{grid-template-columns:1fr}}
+  pre{background:var(--ground);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow-x:auto;font-size:12.5px;font-family:"IBM Plex Mono",monospace;margin:0}
+  .log{max-height:220px;overflow-y:auto;font-size:12.5px;color:var(--muted)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--faint);padding:7px 8px;border-bottom:1px solid var(--line)}
+  td{padding:9px 8px;border-bottom:1px solid var(--line)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Arcdesk Maker</h1>
+  <p class="sub">Post and manage your Arc USDC offers straight from your wallet. Your key never
+  leaves the wallet; this page only asks it to sign. Offers live in the escrow contract, not with
+  the desk, and you can cancel at any time.</p>
+
+  <div class="warn" id="netwarn">
+    <b>Mainnet.</b> Real USDC. The contracts are unaudited and have no amount caps — start small
+    and grow only once real trades have settled end to end.
+  </div>
+
+  <div class="card">
+    <h2>Wallet</h2>
+    <div class="row">
+      <button class="btn" id="connect">Connect wallet</button>
+      <span class="mono" id="acct" style="color:var(--muted)">not connected</span>
+    </div>
+    <div id="balances" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <h2>Post an offer</h2>
+    <div class="grid">
+      <div class="field"><label for="amt">Arc USDC to sell</label><input id="amt" value="10"></div>
+      <div class="field"><label for="prem">Premium (%)</label><input id="prem" value="20"></div>
+    </div>
+    <div class="field">
+      <label for="ttl">Offer window</label>
+      <select id="ttl">
+        <option value="0">Open-ended — until you cancel</option>
+        <option value="300">5 minutes</option>
+        <option value="600">10 minutes</option>
+        <option value="1800">30 minutes</option>
+        <option value="3600">1 hour</option>
+        <option value="86400">24 hours</option>
+      </select>
+    </div>
+    <div class="okbox" id="preview" style="margin-bottom:14px"></div>
+    <div class="row">
+      <button class="btn" id="post" disabled>Approve &amp; post offer</button>
+    </div>
+    <div id="status" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <h2>Your offers</h2>
+    <div id="offers"><p class="sub" style="margin:0">Connect your wallet to load offers.</p></div>
+    <div class="row" style="margin-top:12px"><button class="btn ghost" id="refresh">Refresh</button></div>
+  </div>
+
+  <div class="card">
+    <h2>Log</h2>
+    <div class="log mono" id="log">waiting…</div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const CFG = {
+  api: "https://arcdesk-api.103-244-227-82.sslip.io",
+  arc: { chainId:"0x13b2", rpc:"https://rpc.arc-scan.org", label:"Arc",
+         usdc:"0x3600000000000000000000000000000000000000",
+         nativeCurrency:{name:"USD Coin",symbol:"USDC",decimals:18},
+         explorer:"https://arcscan.app" },
+  feeBps: 200,
+};
+// selectors: cast sig
+const SEL = {
+  approve:"0x095ea7b3", allowance:"0xdd62ed3e", balanceOf:"0x70a08231",
+  postOffer:"0x93154f38", cancelOffer:"0xf952279e", offers:"0x474d3ff0",
+};
+const $ = (q)=>document.querySelector(q);
+const pad = (h)=>h.replace(/^0x/,"").toLowerCase().padStart(64,"0");
+const padN = (n)=>BigInt(n).toString(16).padStart(64,"0");
+const fmt6 = (v)=>(Number(BigInt(v))/1e6).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+let account = null;
+
+function log(m,k){const el=$("#log");if(el.textContent==="waiting…")el.textContent="";
+  const d=document.createElement("div");d.textContent=new Date().toLocaleTimeString()+"  "+m;
+  if(k==="err")d.style.color="var(--crit)";if(k==="ok")d.style.color="var(--good)";
+  el.appendChild(d);el.scrollTop=el.scrollHeight;}
+function status(h,c){$("#status").innerHTML=h?`<div class="${c||'okbox'}">${h}</div>`:"";}
+
+async function rpc(method,params){
+  const r=await fetch(CFG.arc.rpc,{method:"POST",headers:{"content-type":"application/json"},
+    body:JSON.stringify({jsonrpc:"2.0",id:1,method,params})});
+  const j=await r.json(); if(j.error) throw new Error(j.error.message); return j.result;
+}
+async function ensureArc(){
+  const cur=await ethereum.request({method:"eth_chainId"});
+  if(cur===CFG.arc.chainId) return;
+  try{ await ethereum.request({method:"wallet_switchEthereumChain",params:[{chainId:CFG.arc.chainId}]}); }
+  catch(e){
+    if(e.code===4902||/unrecognized|not been added/i.test(e.message||"")){
+      await ethereum.request({method:"wallet_addEthereumChain",params:[{
+        chainId:CFG.arc.chainId,chainName:CFG.arc.label,rpcUrls:[CFG.arc.rpc],
+        nativeCurrency:CFG.arc.nativeCurrency,blockExplorerUrls:[CFG.arc.explorer]}]});
+      await ethereum.request({method:"wallet_switchEthereumChain",params:[{chainId:CFG.arc.chainId}]});
+    } else throw e;
+  }
+}
+async function waitTx(hash){
+  for(let i=0;i<80;i++){
+    const r=await rpc("eth_getTransactionReceipt",[hash]);
+    if(r){ if(r.status!=="0x1") throw new Error("transaction reverted"); return r; }
+    await new Promise(r=>setTimeout(r,2000));
+  }
+  throw new Error("no receipt after ~3 minutes: "+hash);
+}
+async function send(to,data){
+  await ensureArc();
+  return ethereum.request({method:"eth_sendTransaction",params:[{from:account,to,data}]});
+}
+
+function preview(){
+  const amt=parseFloat($("#amt").value)||0, prem=parseFloat($("#prem").value)||0;
+  const proceeds=amt*(1+prem/100), buyer=proceeds*(1+CFG.feeBps/10000);
+  const ttl=parseInt($("#ttl").value,10);
+  $("#preview").innerHTML=`Buyer pays <b class="mono">${buyer.toFixed(2)}</b> USDC on Base ·
+    you receive <b class="mono">${proceeds.toFixed(2)}</b> USDC ·
+    live ${ttl===0?"<b>until you cancel</b>":"<b>"+(ttl/60)+" min</b>"}`;
+}
+["amt","prem","ttl"].forEach(id=>$("#"+id).addEventListener("input",preview));
+$("#ttl").addEventListener("change",preview);
+preview();
+
+async function refreshBalances(){
+  if(!account) return;
+  try{
+    const native=await rpc("eth_getBalance",[account,"latest"]);
+    const usdc=await rpc("eth_call",[{to:CFG.arc.usdc,data:SEL.balanceOf+pad(account)},"latest"]);
+    $("#balances").innerHTML=
+      `<div class="kv"><span>Arc USDC (spendable + gas)</span><b class="mono">${fmt6(BigInt(usdc||"0x0"))}</b></div>`+
+      `<div class="kv"><span>Arc native (same funds, 18dp view)</span><b class="mono">${(Number(BigInt(native))/1e18).toFixed(4)}</b></div>`;
+  }catch(e){ $("#balances").innerHTML=`<div class="err">Arc RPC unreachable: ${e.message}</div>`; }
+}
+
+async function loadOffers(){
+  if(!account) return;
+  try{
+    const r=await fetch(CFG.api+"/offers"); const {offers}=await r.json();
+    const mine=offers.filter(o=>o.maker.toLowerCase()===account.toLowerCase());
+    if(!mine.length){ $("#offers").innerHTML='<p class="sub" style="margin:0">No live offers from your wallet yet.</p>'; return; }
+    $("#offers").innerHTML='<table><tr><th>Offer</th><th>Remaining</th><th>Premium</th><th>Window</th><th></th></tr>'+
+      mine.map(o=>`<tr>
+        <td class="mono">${o.offerId.slice(0,10)}…</td>
+        <td class="mono">${fmt6(o.remaining)} USDC</td>
+        <td class="mono">+${o.premiumBps/100}%</td>
+        <td>${o.expiry===0?'<span style="color:var(--teal)">open-ended</span>':new Date(o.expiry*1000).toLocaleString()}</td>
+        <td><button class="btn danger" style="height:32px;padding:0 12px;font-size:12.5px" data-cancel="${o.offerId}">Cancel</button></td>
+      </tr>`).join("")+'</table>';
+    document.querySelectorAll("[data-cancel]").forEach(b=>b.addEventListener("click",()=>cancelOffer(b.dataset.cancel)));
+  }catch(e){ $("#offers").innerHTML=`<div class="err">${e.message}</div>`; }
+}
+$("#refresh").addEventListener("click",loadOffers);
+
+$("#connect").addEventListener("click",async()=>{
+  if(!window.ethereum) return status("No wallet found. Install MetaMask or Rabby.","err");
+  try{
+    const [a]=await ethereum.request({method:"eth_requestAccounts"});
+    account=a; $("#acct").textContent=a; $("#post").disabled=false;
+    log("connected "+a,"ok"); refreshBalances(); loadOffers();
+  }catch(e){ status(e.message,"err"); }
+});
+
+$("#post").addEventListener("click",async()=>{
+  const amt=parseFloat($("#amt").value)||0, prem=parseFloat($("#prem").value)||0;
+  const ttl=parseInt($("#ttl").value,10);
+  if(amt<=0) return status("Enter an amount.","err");
+  const premBps=Math.round(prem*100);
+  if(premBps<0||premBps>65535) return status("Premium must be between 0 and 655.35%.","err");
+  const amount6=BigInt(Math.round(amt*1e6));
+
+  $("#post").disabled=true;
+  try{
+    await ensureArc();
+    const bal=BigInt(await rpc("eth_call",[{to:CFG.arc.usdc,data:SEL.balanceOf+pad(account)},"latest"]));
+    if(bal<amount6) throw new Error(`Not enough Arc USDC: have ${fmt6(bal)}, need ${fmt6(amount6)}`);
+
+    // unique offer id: keccak-free, just a random 32-byte value the contract has not seen
+    const rnd=crypto.getRandomValues(new Uint8Array(32));
+    const offerId="0x"+Array.from(rnd).map(b=>b.toString(16).padStart(2,"0")).join("");
+
+    log("approving "+fmt6(amount6)+" USDC…");
+    status("Approve the USDC spend in your wallet…");
+    const txA=await send(CFG.arc.usdc, SEL.approve+pad(ESCROW)+padN(amount6));
+    await waitTx(txA); log("approved","ok");
+
+    const expiry = ttl===0 ? 0n : BigInt(Math.floor(Date.now()/1000)+ttl);
+    status("Now confirm the offer in your wallet…");
+    log(`posting offer ${fmt6(amount6)} USDC at +${prem}%…`);
+    const data = SEL.postOffer + pad(offerId) + padN(amount6) + padN(premBps) + padN(expiry);
+    const txP=await send(ESCROW, data);
+    const rec=await waitTx(txP);
+    log("offer live: "+offerId.slice(0,12)+"… (block "+parseInt(rec.blockNumber,16)+")","ok");
+    status(`Offer posted. It appears on the site within ~15 seconds. <a href="${CFG.arc.explorer}/tx/${txP}" target="_blank" rel="noopener">View tx</a>`,"okbox");
+    refreshBalances(); setTimeout(loadOffers,15000);
+  }catch(e){
+    log(e.message,"err"); status(e.message,"err");
+  }finally{ $("#post").disabled=false; }
+});
+
+async function cancelOffer(offerId){
+  if(!confirm("Cancel this offer and withdraw its unreserved liquidity?")) return;
+  try{
+    log("cancelling "+offerId.slice(0,12)+"…");
+    const tx=await send(ESCROW, SEL.cancelOffer+pad(offerId));
+    await waitTx(tx);
+    log("cancelled, liquidity returned","ok");
+    status("Offer cancelled and liquidity returned to your wallet.","okbox");
+    refreshBalances(); setTimeout(loadOffers,12000);
+  }catch(e){ log(e.message,"err"); status(e.message,"err"); }
+}
+
+let ESCROW = null;
+(async()=>{
+  try{
+    const h=await (await fetch(CFG.api+"/health")).json();
+    ESCROW=h.arcEscrow; CFG.feeBps=h.feeBps;
+    log("desk API ok — Arc escrow "+ESCROW);
+    preview();
+  }catch(e){ log("desk API unreachable: "+e.message,"err"); status("Cannot reach the desk API — is the backend running?","err"); }
+})();
+if(window.ethereum) ethereum.on?.("accountsChanged",a=>{account=a[0]||null;$("#acct").textContent=account||"not connected";refreshBalances();loadOffers();});
+</script>
+</body>
+</html>
