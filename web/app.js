@@ -7,7 +7,7 @@ const CFG = {
   api: localStorage.getItem("arcdesk.api") ||
     (location.hostname === "localhost" || location.hostname === "127.0.0.1"
       ? "http://localhost:8899"
-      : "https://arcdesk-api.103-244-227-82.sslip.io"),
+      : "https://api.arcdesk.exchange"),
   sourceChainId: "0x2105", // Base mainnet
   sourceRpc: "https://mainnet.base.org",
   arcRpc: "https://rpc.arc-scan.org",

@@ -1,125 +1,149 @@
-# arcdesk (çalışma adı)
+# Arcdesk
 
-Base/Arbitrum ile Arc arasında USDC için non-custodial OTC takas masası. Maker'lar Arc'ta
-süreli ilanlar açar, taker'lar kaynak zincirde öder, keeper ikisini eşleştirir. Fee %2,
-taker öder. Kimse fonu emanetçi olarak tutmaz: her şey on-chain hashlock + timeout ile bağlı.
+**[arcdesk.exchange](https://arcdesk.exchange)** — a two-sided, non-custodial OTC desk for moving
+USDC between **Base** and the **Arc Network**. Makers post orders at their own premium, takers
+accept them, and the desk earns a flat 2% from the taker. The desk never holds anyone's funds:
+everything settles through escrow contracts, and every refund path is permissionless and time-based.
 
-## Nasıl çalışıyor (HTLC akışı)
+> **The contracts are unaudited.** They are covered by 49 automated tests and have settled real
+> trades, but that is not an independent review. Do not risk more than you can afford to lose.
 
-Sıra kasıtlı: **secret'i maker üretir**, çünkü Arc'ta gas parası USDC ve Arc'a ilk kez USDC
-alan kullanıcının orada harcayacak parası yoktur. Bu yüzden taker'ın Arc'ta işlem yapması
-hiçbir adımda gerekmez.
+---
 
-1. **Maker önce bağlanır** (Arc, `reserve`): keeper, maker'ın ilanından taker adına, maker'ın
-   seçtiği hash ile ve alıcısı taker sabitlenmiş şekilde likidite ayırır. Uzun süreli.
-2. **Taker sonra öder** (kaynak zincir, `lockPayment`): maker payı + %2 ücret aynı hash ile
-   kilitlenir. Kısa süreli. Taker'ın tek işlemi budur.
-3. **Maker ödemeyi alır** (`claimPayment`): secret'i kullanır ve böylece **secret zincirde
-   herkese açılır**.
-4. **Teslimat** (Arc, `claimReservation`): secret artık açık olduğu için bu çağrıyı herkes
-   yapabilir, fonlar zaten taker'a sabitli. Keeper taker adına gönderir, taker gas ödemez.
+## Why this exists
 
-Garanti: maker secret'i ancak ödeme kilitliyken açar; taker teslimat olmazsa süre dolunca
-kendi parasını geri alır. Sıralamayı kontrat zorlar: bir ödeme en fazla `MAX_PAYMENT_WINDOW`
-(30 dk) kilitli kalabilir, bir rezervasyon en az `MIN_RESERVATION_WINDOW` (90 dk) yaşar.
-Yani secret açıldıktan sonra teslimat için her zaman geniş bir pencere kalır.
+Arc is a closed network: the official bridges in are not open, so USDC already inside it trades
+above face value. That premium is the whole market. Makers price the scarcity, takers pay for
+access, the desk takes 2%. When access opens, premiums collapse — this is a market for exactly as
+long as the door stays shut, and the site says so plainly.
 
-## Süreli ilanlar (masanın farkı)
+## How a trade works
 
-Maker `postOffer(offerId, amount, premiumBps, expiry)` ile ilanı belli bir süreye kadar
-açar (örn. 5-10 dk). Süre dolunca yeni rezervasyon alınmaz; `expireOffer` ile likidite
-maker'a döner (herkes tetikleyebilir, maker uğraşmaz).
+The ordering is deliberate. **The party holding the posted liquidity also holds the preimage**, so
+they commit first and reveal last:
 
-## Kontrat
+1. **The maker commits first.** The keeper reserves a slice of their offer, addressed to the taker,
+   under the maker's hashlock. Reservations must live at least 90 minutes.
+2. **The taker pays second**, escrowing price + fee under the same hashlock on the other chain.
+   A payment can be locked for at most 30 minutes.
+3. **The maker claims the payment**, which publishes the preimage on-chain.
+4. **Delivery** is then a permissionless call anyone can make, and the desk makes it.
 
-Tek kontrat, iki zincire aynı bytecode ile deploy edilir: `contracts/src/ArcdeskEscrow.sol`.
-Hangi bacağın kullanıldığını bulunduğu zincir belirler, ayar değil.
+Neither side can take the other's funds: the maker only reveals once a payment is claimable, and the
+taker's payment refunds itself if nothing is delivered. The 30/90-minute asymmetry is enforced by
+the contract and guarantees there is always time to deliver after a preimage goes public.
 
-- **Likidite bacağı (Arc):** `postOffer` / `fundOffer` / `cancelOffer` / `expireOffer` /
-  `reserve` / `claimReservation` / `refundReservation`
-- **Ödeme bacağı (kaynak zincir):** `lockPayment` / `claimPayment` / `refundPayment`
+**Why step 4 being permissionless matters:** on Arc the gas token *is* USDC. A buyer acquiring their
+first Arc USDC has none to spend, so they could never submit a claim there. Each party only ever
+transacts on the chain where their funds already are.
 
-Tek kontrat olmasının sebebi: incelenecek kod yüzeyi yarıya iner, iki deploy tek audit'e konu olur.
+## Two sides, one contract
 
-Güven modeli: taker tamamen trustless. Maker likiditesini keeper'a (operator) delege eder;
-rezerve edilen fon yalnızca isimli taker'a veya refund'la maker'a döner, keeper kendine yönlendiremez.
+The escrow is symmetric and the same bytecode is deployed to both chains; the chain it sits on
+decides which half gets used. That is what makes bids possible with no new contract:
 
-## Test
+| | Ask (someone sells Arc USDC) | Bid (someone buys Arc USDC) |
+|---|---|---|
+| Posted liquidity lives on | Arc | Base |
+| Counterparty pays on | Base | Arc |
+| The taker is | the buyer | the seller |
 
-```bash
-cd contracts && forge test            # 29 test: happy path, refund, expiry, erişim, griefing
-```
+## Live deployment
 
-Uçtan uca (iki yerel zincir + keeper):
-
-```bash
-# iki anvil (kaynak + arc simülasyonu)
-anvil --port 9987 & anvil --port 9988 &
-cd keeper && npm install
-SRC_URL=http://127.0.0.1:9987 ARC_URL=http://127.0.0.1:9988 node e2e.mjs
-# -> "E2E PASS: full cross-chain swap settled through the keeper."
-```
-
-## Testnete deploy
-
-```bash
-cd contracts
-# aynı kontrat, iki zincire
-USDC=$SOURCE_USDC OPERATOR=$KEEPER_ADDR \
-  forge script script/Deploy.s.sol --rpc-url $SOURCE_RPC --broadcast --private-key $PK
-USDC=$ARC_USDC    OPERATOR=$KEEPER_ADDR \
-  forge script script/Deploy.s.sol --rpc-url $ARC_RPC --broadcast --private-key $PK
-```
-
-Adresleri `.env`'e yaz, keeper'ı başlat: `cd keeper && node index.mjs`.
-
-## Testnet dağıtımı (CANLI)
-
-| Bacak | Zincir | Chain ID | Adres |
+| Leg | Chain | Chain ID | Address |
 |---|---|---|---|
-| Ödeme | Base Sepolia | 84532 | `0x309E0145Bda44081C2Cf4E196f5Eb21Da451ECd4` |
-| Likidite | Arc testnet | 5042002 | `0x5a65Bc12Fb602c5CA0dfBdA422bb65bE6339B45f` |
+| Payment | Base | 8453 | `0x663b1167456Ae4B52f3b226206B28cBc309c0a3a` |
+| Liquidity | Arc | 5042 | `0x9f06B98B19EeB1bA17d8602D28e39a7350a8091b` |
 
-USDC: Base Sepolia `0x036CbD53842c5426634e7929541eC2318f3dCF7e`, Arc `0x3600…0000` (6dp).
-Deployer/operator: `0x7d2828dee9C6FE9253805314306Eda3fBded3465` (bu projeye özel, anahtar `.deployer.json`).
-Testnet USDC: [faucet.circle.com](https://faucet.circle.com) → Arc Testnet.
+USDC: Base `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`, Arc `0x3600…0000` (6 decimals).
 
-Canlı doğrulama: `cd keeper && node live-e2e.mjs` → **LIVE E2E PASS**, gerçek çapraz zincir
-takas (ilan → ödeme kilidi → keeper rezervasyonu → secret ile çekim → maker ödemesi + %2 ücret).
+## Layout
 
-## Arc'a özgü teknik notlar
-
-- Arc'ta USDC hem gas hem ERC20: `balanceOf` aslında **native bakiyenin 1e12'ye bölünmüş** hali (6dp görünüm, 18dp iç değer).
-- Transferler zincir precompile'larına delege ediliyor: `0x1800…0000` (bakiye) ve `0x1800…0001` (`isBlocklisted`). **Arc'ta blocklist var**, escrow adresi de blocklist'e girebilir, mainnet öncesi düşünülmeli.
-- Bu precompile'lar forge'da olmadığı için Arc tarafı fork'ta tam simüle edilemez, canlı zincirde doğrulanır.
-- Public RPC'ler `eth_newFilter` desteklemiyor; keeper bu yüzden **getLogs poll** ile çalışıyor.
-
-## Durum
-
-- [x] Tek escrow kontratı (iki zincir aynı bytecode, HTLC, süreli + süresiz ilan)
-- [x] 40 test (birim+fork+saldırı) (25 birim + 4 fork) + yerel iki zincirli e2e (PASS)
-- [x] Testnet deploy: Base Sepolia + Arc testnet
-- [x] Canlı çapraz zincir takas testi (PASS)
-- [x] **A: secret'i maker üretir**, taker Arc'ta hiç işlem yapmaz (canlı doğrulandı)
-- [x] Order backend (`backend/server.mjs`): API + ilan indexer + keeper tek süreç, SQLite, port 8899; canlı akış doğrulandı (quoted→reserved→paid→maker_paid→delivered)
-- [x] Çok sayfalı frontend (`web/`): Trade / Post offer / Orders / Profile / How it works; backend aynı porttan sunuyor, cüzdan (window.ethereum) ile gerçek alım + refund butonu
-- [ ] Maker API (üçüncü taraf maker'lar kendi hashlock'unu getirir; şimdilik tek maker = masa)
-- [ ] VPS'e taşıma (backend + keeper 7/24)
-- [ ] Bağımsız audit (mainnet öncesi ŞART)
-
-## Çalıştırma
-
-```bash
-cd backend && PORT=8899 node server.mjs   # API + indexer + keeper + site: http://localhost:8899
+```
+contracts/   ArcdeskEscrow.sol and the full Foundry test suite
+keeper/      settlement keeper; one class drives both trading directions
+backend/     HTTP API + order-book indexer + keeper, one process, SQLite
+web/         the site: order book, trade ticket, orders, profile, docs, policies
+tools/       local browser tools for deploying and market making from a wallet
 ```
 
-## Güvenlik incelemesi (saldırgan testi)
+## Running it
 
-40 test (birim + fork + saldırı). Bulundu ve DÜZELTİLDİ: (1) order-id front-run DoS -> ödeme
-(orderId,payer) ile anahtarlandı; (2) keeper her hashlock-eşleşen ödemeyi tahsil ediyordu ->
-sadece tam teklif edilen ödemeyi tahsil ediyor; (3) kimliksiz POST /orders bedava rezervasyon
--> per-offer cap(3) + IP rate-limit + otomatik iade sweeper; (4) SQLite hata sızıntısı -> katı
-girdi doğrulama. BİLİNEN (design): operator maker ilanını boşaltabilir -> çözüm EIP-712 maker
-imzası (mainnet öncesi 3. taraf maker için şart); şu an tek maker masa, 3. taraf fonu yok.
+```bash
+cd contracts && forge test          # 49 tests
+cp .env.example .env                # fill in RPCs, escrow addresses, keeper key
+cd backend && PORT=8899 node server.mjs
+```
 
-Not: kontratlar audit edilmedi. Gerçek fon öncesi bağımsız inceleme şart.
+That single process serves the API, indexes both order books, runs both keeper lanes, and serves
+the site at `http://localhost:8899`.
+
+### Local end-to-end
+
+```bash
+anvil --port 9987 & anvil --port 9988 &
+cd contracts && forge build
+cd ../keeper && SRC_URL=http://127.0.0.1:9987 ARC_URL=http://127.0.0.1:9988 node e2e.mjs
+```
+
+### Against the live chains
+
+```bash
+cd keeper && node live-e2e.mjs      # posts, pays, settles, and asserts balances
+```
+
+### Deploying
+
+Use `tools/deploy.html` (serve `tools/` over http and open it) so the key never leaves your wallet,
+or run `deploy-mainnet.sh`, which prompts for the key without echoing it. Both make **you** the
+owner and set a separate hot key as operator.
+
+## Testing
+
+| Suite | What it covers |
+|---|---|
+| `ArcdeskEscrow.t.sol` | happy path, refunds, hashlock rules, access control, timed and open-ended orders |
+| `Attack.t.sol` | adversarial: redirecting delivery or payment, forged and replayed claims, admin seizure, front-running |
+| `Fuzz.t.sol` | randomised amounts and addresses: refunds return exactly what was paid, claims split exactly |
+| `Invariant.t.sol` | 32k random call sequences; the escrow balance must equal its obligations exactly |
+| `ForkedTestnet.t.sol` | wiring verified against the real chains and real USDC |
+
+Static analysis: `slither src/ArcdeskEscrow.sol` reports no high or medium findings.
+
+## Security
+
+The system was tested adversarially and the findings fixed:
+
+- **Order-id front-running** — payments are keyed by `(orderId, payer)`, so a dust lock under a
+  public order id occupies only its own slot and cannot block the real taker.
+- **Premature preimage reveal** — the keeper settles only the exact payment it quoted, checking the
+  payer, the maker and the amounts before claiming.
+- **Free reservation griefing** — a per-offer cap on unpaid reservations, per-IP rate limiting, and
+  a sweeper that returns stale reservations and expired offers to their makers with the desk paying
+  the gas.
+
+**Known and open:** the operator can move liquidity posted by third-party makers. That is inherent
+to a keeper-reserved design; the fix is maker-signed reservations (EIP-712), and it is a
+prerequisite before third-party market making is opened. Today the desk is the only maker, so no
+third-party funds are exposed.
+
+## Trust model
+
+| Party | Can | Cannot |
+|---|---|---|
+| Desk / keeper | stall a trade | take escrowed funds, redirect a delivery, or block a refund |
+| Maker | decline to claim, so the trade times out and the taker is refunded | take a payment without releasing the USDC that unlocks it |
+| Owner | change the operator | touch funds, block refunds, or upgrade the code — there is no proxy |
+| Token issuer | freeze any Arc address, escrows included | — external, disclosed on the site's risk page |
+
+## Arc specifics worth knowing
+
+- USDC is also the gas token. `balanceOf` is the account's native balance divided by 10¹² — one pool
+  of funds, a 6-decimal surface over an 18-decimal core.
+- Transfers are executed by chain-level precompiles, so the Arc leg cannot be faithfully simulated
+  on a fork and must be verified live.
+- Public Arc RPCs return 503s often; the backend runs every endpoint behind a failover provider.
+
+## License
+
+MIT

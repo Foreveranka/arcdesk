@@ -5,20 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Orders · Arcdesk</title>
 <meta name="description" content="Track settlement across both chains and claim a refund yourself once a deadline passes.">
-<link rel="canonical" href="https://arcdesk-roan.vercel.app/orders.html">
+<link rel="canonical" href="https://arcdesk.exchange/orders.html">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Arcdesk">
 <meta property="og:title" content="Your Arcdesk orders">
 <meta property="og:description" content="Track settlement across both chains and claim a refund yourself once a deadline passes.">
-<meta property="og:url" content="https://arcdesk-roan.vercel.app/orders.html">
-<meta property="og:image" content="https://arcdesk-roan.vercel.app/og.png">
+<meta property="og:url" content="https://arcdesk.exchange/orders.html">
+<meta property="og:image" content="https://arcdesk.exchange/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Arcdesk order book: asks and bids for USDC between Base and Arc">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Your Arcdesk orders">
 <meta name="twitter:description" content="Track settlement across both chains and claim a refund yourself once a deadline passes.">
-<meta name="twitter:image" content="https://arcdesk-roan.vercel.app/og.png">
+<meta name="twitter:image" content="https://arcdesk.exchange/og.png">
 <meta name="theme-color" content="#0d1117">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -28,7 +28,7 @@
 </head>
 <body>
 <header><div class="wrap bar">
-  <a class="brand" href="index.html"><span class="spark">&#9672;</span> Arcdesk</a>
+  <a class="brand" href="index.html"><svg class="spark" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="am" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#35d0ba"/><stop offset="1" stop-color="#7fbe7a"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#am)"/><path d="M32 13 L47 32 L32 51 L17 32 Z" fill="#05201d"/><path d="M32 22 L40 32 L32 42 L24 32 Z" fill="#35d0ba"/></svg> Arcdesk</a>
   <nav class="menu">
     <a href="index.html" data-page="trade">Trade</a>
     <a href="post.html" data-page="post">Post offer</a>
@@ -48,7 +48,8 @@
   <p>Every order is tracked on both chains. If a delivery ever stalls, the refund button appears
   here after the timeout — it calls the contract directly from your wallet.</p>
 </div>
-<div id="olist"><p class="note">Connect your wallet to see your orders.</p></div>
+<div id="olist"><div class="emptystate"><div class="mark">&#128179;</div><b>Connect your wallet</b>
+  <p>Your orders are looked up by the address that paid, so nothing to sign — just connect.</p></div></div>
 
 </div></main>
 
@@ -59,7 +60,10 @@ async function load() {
   if (!wallet.addr) return;
   try {
     const { orders } = await api("/address/" + wallet.addr + "/orders");
-    if (!orders.length) { $("#olist").innerHTML = '<p class="note">No orders yet. <a href="index.html">Make your first trade.</a></p>'; return; }
+    if (!orders.length) { $("#olist").innerHTML = '<div class="emptystate"><div class="mark">&#8646;</div><b>No orders yet</b>' +
+      '<p>Once you take an order from the book it appears here, tracked across both chains ' +
+      'until it settles — with a refund button if it ever stalls.</p>' +
+      '<a class="cta2" href="index.html">Open the order book</a></div>'; return; }
     const now = Math.floor(Date.now() / 1000);
     $("#olist").innerHTML = '<div class="tblwrap"><table class="tbl"><tr><th>Order</th><th>Bought</th><th>Paid</th><th>Status</th><th>When</th><th></th></tr>' +
       orders.map((o) => {
@@ -88,7 +92,7 @@ setInterval(load, 10000);
 <footer class="sitefoot"><div class="wrap">
   <div class="inner">
     <div class="brandcol">
-      <span class="spark">&#9672;</span>
+      <svg class="spark" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="am" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#35d0ba"/><stop offset="1" stop-color="#7fbe7a"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#am)"/><path d="M32 13 L47 32 L32 51 L17 32 Z" fill="#05201d"/><path d="M32 22 L40 32 L32 42 L24 32 Z" fill="#35d0ba"/></svg>
       <div><div class="bname">Arcdesk</div><div class="btag">USDC OTC &middot; Base &#8644; Arc</div></div>
     </div>
     <nav>
@@ -102,7 +106,7 @@ setInterval(load, 10000);
     </nav>
   </div>
   <div class="fine">
-    <span class="warn">Unaudited contracts. Never trade more than you can afford to lose.</span>
+    <span>Non-custodial &middot; self-refund guaranteed &middot; <a href="risk.html">unaudited</a></span>
     <span>Independent project. Not affiliated with Circle, Arc, or Base.</span>
   </div>
 </div></footer>
