@@ -35,20 +35,42 @@ const FEE_BPS = BigInt(env.FEE_BPS || 200);
 // Arc's public RPCs are flaky (503s are common) — the competitor's outage was blamed on
 // exactly this. Use every configured endpoint behind a FallbackProvider so a single sick
 // node degrades latency instead of stopping settlement.
-function provider(urls, chainId) {
-  const list = urls.filter(Boolean);
-  if (list.length < 2) return new ethers.JsonRpcProvider(list[0], chainId, { staticNetwork: true });
+async function probe(url, chainId) {
+  try {
+    const r = await fetch(url, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_chainId", params: [] }),
+      signal: AbortSignal.timeout(6000),
+    });
+    const j = await r.json();
+    return r.ok && parseInt(j.result, 16) === chainId;
+  } catch { return false; }
+}
+
+// A dead endpoint in the pool is worse than no failover at all: ethers tries to parse its
+// error body and the whole poll fails with "invalid numeric value". So every endpoint is
+// probed first, and only the ones answering on the right chain are used.
+async function provider(urls, chainId, label) {
+  const candidates = urls.filter(Boolean);
+  const live = [];
+  for (const url of candidates) {
+    if (await probe(url, chainId)) live.push(url);
+    else console.log(`[rpc] ${label}: ${url} is not answering on chain ${chainId}, skipping`);
+  }
+  if (!live.length) throw new Error(`no working RPC for ${label} (tried ${candidates.length})`);
+  console.log(`[rpc] ${label}: using ${live.length} endpoint(s) — ${live.join(", ")}`);
+  if (live.length === 1) return new ethers.JsonRpcProvider(live[0], chainId, { staticNetwork: true });
   return new ethers.FallbackProvider(
-    list.map((url, i) => ({
+    live.map((url, i) => ({
       provider: new ethers.JsonRpcProvider(url, chainId, { staticNetwork: true }),
       priority: i + 1, stallTimeout: 3000, weight: 1,
     })),
     chainId,
-    { quorum: 1 } // one healthy answer is enough; we only read public state
+    { quorum: 1 }
   );
 }
-const src = provider([env.SOURCE_RPC, env.SOURCE_RPC_2], Number(env.SOURCE_CHAIN_ID || 0) || undefined);
-const arc = provider([env.ARC_RPC, env.ARC_RPC_2], Number(env.ARC_CHAIN_ID || 0) || undefined);
+const src = await provider([env.SOURCE_RPC, env.SOURCE_RPC_2], Number(env.SOURCE_CHAIN_ID), "source");
+const arc = await provider([env.ARC_RPC, env.ARC_RPC_2], Number(env.ARC_CHAIN_ID), "arc");
 const wSrc = new ethers.Wallet(PK, src);
 const wArc = new ethers.Wallet(PK, arc);
 const srcEsc = new ethers.Contract(env.SOURCE_ESCROW, ESCROW_ABI, wSrc);
